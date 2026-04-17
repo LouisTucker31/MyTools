@@ -360,6 +360,19 @@
     setTimeout(() => incomeEl?.focus(), 50);
   }
 
+  function openEntry() {
+    document.getElementById('b-entry-panel')?.classList.remove('b-hidden');
+    const toggle = document.getElementById('b-entry-toggle');
+    if (toggle) toggle.textContent = 'Cancel';
+    setTimeout(() => document.getElementById('b-amt')?.focus(), 50);
+  }
+
+  function closeEntry() {
+    document.getElementById('b-entry-panel')?.classList.add('b-hidden');
+    const toggle = document.getElementById('b-entry-toggle');
+    if (toggle) toggle.textContent = 'Add';
+  }
+
   function closeSetup() {
     document.getElementById('b-setup-panel')?.classList.add('b-hidden');
     const toggle = document.getElementById('b-setup-toggle');
@@ -432,23 +445,28 @@
 
   <!-- D: Spend entry -->
   <div class="b-module b-area-entry">
-    <div class="b-label">Add Spending</div>
-    <div class="b-entry-fields">
-      <div class="b-field">
-        <input type="number" class="b-input" id="b-amt"
-               placeholder="£0.00" min="0" step="0.01">
-      </div>
-      <div class="b-field">
-        <select class="b-input" id="b-cat">
-          <option value="">Category</option>
-          ${catOpts}
-        </select>
-      </div>
+    <div class="b-setup-bar">
+      <span class="b-setup-text">Add Spending</span>
+      <button class="b-btn-ghost" id="b-entry-toggle">Add</button>
     </div>
-    <div class="b-entry-note">
-      <input type="text" class="b-input" id="b-note" placeholder="Note (optional)">
+    <div class="b-setup-panel b-hidden" id="b-entry-panel">
+      <div class="b-entry-fields">
+        <div class="b-field">
+          <input type="number" class="b-input" id="b-amt"
+                 placeholder="£0.00" min="0" step="0.01">
+        </div>
+        <div class="b-field">
+          <select class="b-input" id="b-cat">
+            <option value="">Category</option>
+            ${catOpts}
+          </select>
+        </div>
+      </div>
+      <div class="b-entry-note">
+        <input type="text" class="b-input" id="b-note" placeholder="Note (optional)">
+      </div>
+      <button class="b-btn-add" id="b-btn-add">Add Spending</button>
     </div>
-    <button class="b-btn-add" id="b-btn-add">Add Spending</button>
   </div>
 
   <!-- E: Today's list -->
@@ -522,12 +540,12 @@
       ? `${MONTH_NAMES[parseISO(periodStart).getMonth()]} ${parseISO(periodStart).getFullYear()}`
       : `${shortDate(parseISO(periodStart))} – ${shortDate(parseISO(periodEnd))}`;
 
-    const incomeDisplay = computed.extraIncomeTotal > 0
-      ? `${fmt(computed.totalIncome)} <span class="b-setup-extra">(+${fmt(computed.extraIncomeTotal)} added)</span>`
-      : fmt(disposableIncome);
+    const remainingDisplay = computed.totalRemaining < 0
+      ? `<span style="color:#FF4F40">−£${Math.abs(computed.totalRemaining).toFixed(2)}</span>`
+      : `£${computed.totalRemaining.toFixed(2)}`;
 
     el.innerHTML =
-      `<strong>${incomeDisplay}</strong> · ${periodStr}<br>` +
+      `<strong>${remainingDisplay}</strong> · ${periodStr}<br>` +
       `<strong>${daysLeft} day${daysLeft !== 1 ? 's' : ''} left</strong>`;
   }
 
@@ -831,28 +849,28 @@
     el.innerHTML = `
 <div class="b-sum-tile">
   <div class="b-sum-val">${fmt(data.totalIncome)}</div>
-  <div class="b-sum-lbl">Total Income</div>
+  <div class="b-sum-lbl">Total<br>Income</div>
 </div>
 <div class="b-sum-tile">
   <div class="b-sum-val">${fmt(data.totalSpent)}</div>
-  <div class="b-sum-lbl">Total Spent</div>
+  <div class="b-sum-lbl">Total<br>Spent</div>
 </div>
 <div class="b-sum-tile">
   <div class="b-sum-val${remainCls}">${fmtBal(data.totalRemaining)}</div>
-  <div class="b-sum-lbl">Remaining</div>
+  <div class="b-sum-lbl">Remaining<br>Budget</div>
 </div>
 ${extraLine}
 <div class="b-sum-tile b-sum-tile--under">
   <div class="b-sum-val b-sum-val--under">${data.daysUnder}</div>
-  <div class="b-sum-lbl">Days Under</div>
+  <div class="b-sum-lbl">Days<br>Under</div>
 </div>
 <div class="b-sum-tile b-sum-tile--over">
   <div class="b-sum-val b-sum-val--over">${data.daysOver}</div>
-  <div class="b-sum-lbl">Days Over</div>
+  <div class="b-sum-lbl">Days<br>Over</div>
 </div>
 <div class="b-sum-tile b-sum-tile--track">
   <div class="b-sum-val b-sum-val--track">${isCurrent ? computed.daysOnTrack : data.daysUnder}</div>
-  <div class="b-sum-lbl">Days On Track</div>
+  <div class="b-sum-lbl">Days On<br>Track</div>
 </div>`;
   }
 
@@ -1078,6 +1096,11 @@ ${extraLine}
       if (e.key === 'Enter') { e.preventDefault(); document.getElementById('b-add-income')?.click(); }
     });
 
+    document.getElementById('b-entry-toggle')?.addEventListener('click', () => {
+      const panel = document.getElementById('b-entry-panel');
+      panel?.classList.contains('b-hidden') ? openEntry() : closeEntry();
+    });
+
     // Spend entry
     function submitSpend() {
       const amtEl  = document.getElementById('b-amt');
@@ -1094,7 +1117,7 @@ ${extraLine}
       amtEl.value  = '';
       catEl.value  = '';
       noteEl.value = '';
-      amtEl.focus();
+      closeEntry();
     }
 
     document.getElementById('b-btn-add')?.addEventListener('click', submitSpend);

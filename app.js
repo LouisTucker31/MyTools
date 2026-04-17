@@ -58,7 +58,7 @@ pages.forEach((page, i) => {
   //   You can check `page.id` to target a specific tool.
   // ──────────────────────────────────────────────────────────
   const card = document.createElement("div");
-  card.className = "card";
+  card.className = "card card--placeholder";
   card.innerHTML = `
     <div class="card-title">${page.title}</div>
     <div class="card-placeholder" id="card-content-${page.id}">

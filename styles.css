@@ -82,7 +82,7 @@ body {
   right: 0;
   z-index: 200;
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   /* horizontal padding keeps both ends away from notch/edges */
   padding-left:  max(20px, env(safe-area-inset-left, 20px));
@@ -131,7 +131,6 @@ body {
     inset 0 -1px 0  rgba(0, 0, 0, 0.10),
     0 6px 28px       rgba(0, 0, 0, 0.32),
     0 1px 4px        rgba(0, 0, 0, 0.18);
-  margin-top: 6px;
   /* never shrink — if space is tight the title shrinks first */
   flex-shrink: 0;
 }
@@ -310,6 +309,13 @@ body {
 .card--budget::before { display: none; }
 .card--budget .card-title { display: none; }
 
+.card--placeholder {
+  padding-bottom: max(72px, calc(env(safe-area-inset-bottom, 0px) + 72px));
+}
+.page:has(.card--placeholder) {
+  padding-bottom: 0;
+}
+
 /* Scrollable content area inside the (now invisible) card */
 #card-content-budget {
   flex: 1;
@@ -452,7 +458,7 @@ body {
 /* ── Setup bar ──────────────────────────────────────────────── */
 .b-setup-bar {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
   flex-wrap: nowrap;
@@ -541,7 +547,7 @@ option { background: #0f2418; color: #fff; }
 .b-stat {
   background: rgba(255,255,255,0.07);
   border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 14px;
+  border-radius: 22px;
   padding: 16px;
   display: flex;
   flex-direction: column;
@@ -865,7 +871,7 @@ option { background: #0f2418; color: #fff; }
 }
 
 .b-cal-dn {
-  font-size: clamp(11px, 1.4vw, 16px);
+  font-size: clamp(13px, 3.2vw, 16px);
   font-weight: 600;
   line-height: 1.2;
   color: rgba(255,255,255,0.62);
@@ -877,7 +883,7 @@ option { background: #0f2418; color: #fff; }
 .b-cal-cell--over       .b-cal-dn { color: rgba(255,255,255,0.7); }
 
 .b-cal-ds {
-  font-size: clamp(7px, 0.9vw, 12px);
+  font-size: clamp(10px, 2.2vw, 12px);
   font-weight: 700;
   line-height: 1.2;
   color: rgba(255,255,255,0.28);
@@ -923,6 +929,7 @@ option { background: #0f2418; color: #fff; }
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.3px;
+  line-height: 1.4;
   color: rgba(255,255,255,0.28);
 }
 
