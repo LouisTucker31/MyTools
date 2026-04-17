@@ -35,15 +35,11 @@ body {
   position: relative;
 }
 
-/* Single full-screen shell. All children use position:absolute
-   relative to this. JS sets --vv-offset to resist iOS keyboard push. */
+/* Single full-screen shell. Children use position:absolute inside it. */
 #app {
   position: fixed;
   inset: 0;
   overflow: hidden;
-  --vv-offset: 0px;
-  transform: translateY(var(--vv-offset));
-  transition: transform 0.22s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 /* --- Background ------------------------------------------- */

@@ -443,31 +443,7 @@ function onPointerUp(e) {
 }
 
 
-/* ── 12. KEYBOARD / VISUAL VIEWPORT ────────────────────────
-   On iOS Safari (standalone PWA), the software keyboard shrinks
-   the visual viewport but the layout viewport stays the same size,
-   causing fixed-position elements to be pushed up. We compensate
-   by translating the body (which contains all fixed children via
-   stacking context) down by visualViewport.offsetTop so the UI
-   stays pinned in its original position.
-   ─────────────────────────────────────────────────────────── */
-const appEl = document.getElementById("app");
-
-function syncToVisualViewport() {
-  const vv = window.visualViewport;
-  if (!vv) return;
-  const offset = Math.round(vv.offsetTop);
-  appEl.style.setProperty("--vv-offset", `${offset}px`);
-}
-
-if (window.visualViewport) {
-  window.visualViewport.addEventListener("resize", syncToVisualViewport, { passive: true });
-  window.visualViewport.addEventListener("scroll", syncToVisualViewport, { passive: true });
-  syncToVisualViewport();
-}
-
-
-/* ── 13. INITIALISE ─────────────────────────────────────── */
+/* ── 12. INITIALISE ─────────────────────────────────────── */
 function init() {
   // Set initial background colour
   applyBgColour(hexToRgb(pages[0].bg));
