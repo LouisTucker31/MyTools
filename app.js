@@ -330,6 +330,25 @@ viewport.addEventListener("pointermove", onPointerMove, { passive: false });
 viewport.addEventListener("pointerup",   onPointerUp);
 viewport.addEventListener("pointercancel", onPointerUp);
 
+// Forward mouse-wheel/trackpad scroll to the active page's scrollable content.
+// The viewport has overflow:hidden so wheel events can't naturally reach the
+// inner scrollable element — we capture and redirect them here.
+viewport.addEventListener("wheel", e => {
+  const activePage = strip.children[currentIndex];
+  if (!activePage) return;
+  const scrollable = activePage.querySelector('[id^="card-content-"]');
+  if (!scrollable) return;
+
+  // Normalise delta across deltaMode: 0=px, 1=lines(~20px), 2=page
+  let dy = e.deltaY;
+  if (e.deltaMode === 1) dy *= 20;
+  if (e.deltaMode === 2) dy *= scrollable.clientHeight;
+
+  e.preventDefault();
+  e.stopPropagation();
+  scrollable.scrollTop += dy;
+}, { passive: false });
+
 function onPointerDown(e) {
   // Ignore multi-touch
   if (e.isPrimary === false) return;

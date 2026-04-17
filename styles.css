@@ -28,98 +28,93 @@ body {
 }
 
 /* --- Background ------------------------------------------- */
-/*
-  #bg background-color is set by JS (page colour).
-  background-image layers sit on top and never change —
-  they add the stadium-light bloom and depth gradient.
-*/
 #bg {
   position: fixed;
   inset: 0;
   z-index: 0;
-  background-color: #0a2e14; /* JS overwrites this */
-  /* Layer 1 (top): soft radial bloom from above — like stadium floodlights
-     Layer 2 (bottom): linear depth fade to near-black                    */
+  background-color: #0a2e14;
   background-image:
     radial-gradient(
       ellipse 160% 55% at 50% -8%,
-      rgba(255, 255, 255, 0.11) 0%,
+      rgba(255, 255, 255, 0.13) 0%,
       transparent 60%
     ),
     linear-gradient(
       180deg,
-      rgba(255, 255, 255, 0.03) 0%,
-      rgba(0, 0, 0, 0)         45%,
-      rgba(0, 0, 0, 0.5)       100%
+      rgba(255, 255, 255, 0.04) 0%,
+      rgba(0, 0, 0, 0)         50%,
+      rgba(0, 0, 0, 0.25)      100%
     );
-  /* Smooth colour transitions driven by JS rAF */
-  transition: background-color 0s; /* JS handles this via rAF, not CSS */
+  transition: background-color 0s;
 }
 
-/* Edge vignette — darkens corners without touching the JS colour */
 #bg::after {
   content: "";
   position: absolute;
   inset: 0;
   background: radial-gradient(
     ellipse 100% 100% at 50% 50%,
-    transparent 35%,
-    rgba(0, 0, 0, 0.4) 100%
+    transparent 40%,
+    rgba(0, 0, 0, 0.18) 100%
   );
   pointer-events: none;
 }
 
 /* --- Header ----------------------------------------------- */
+/*
+  Fixed above everything. z-index 200 so it always sits above
+  the carousel (z-index 10) and its scrolling content.
+  pointer-events: none on the container lets swipes pass through
+  the gap area; the pill re-enables pointer-events for itself.
+*/
 #header {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  z-index: 100;
+  z-index: 200;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  padding-left: 22px;
-  padding-right: 22px;
-  padding-top: calc(env(safe-area-inset-top, 16px) + 20px);
+  /* horizontal padding keeps both ends away from notch/edges */
+  padding-left:  max(18px, env(safe-area-inset-left, 18px));
+  padding-right: max(18px, env(safe-area-inset-right, 18px));
+  padding-top:   calc(env(safe-area-inset-top, 0px) + 16px);
   padding-bottom: 0;
   pointer-events: none;
+  /* Prevent pill wrapping to next line on narrow screens */
+  gap: 10px;
 }
 
-/* App title — large, heavy, tracking tight like Apple Sports */
+/* App title */
 #app-title {
-  font-size: clamp(38px, 10.5vw, 50px);
+  /* smaller on mobile so the pill has room */
+  font-size: clamp(28px, 8vw, 50px);
   font-weight: 800;
   letter-spacing: -1.5px;
   line-height: 1;
   color: #ffffff;
-  /* Subtle glow lifts the text off the dark background */
   text-shadow:
-    0 1px 0  rgba(255, 255, 255, 0.15),
+    0 1px 0   rgba(255, 255, 255, 0.15),
     0 2px 16px rgba(0, 0, 0, 0.25);
   white-space: nowrap;
+  /* shrink title before the pill ever gets clipped */
+  flex-shrink: 1;
+  min-width: 0;
 }
 
 /* --- Pill -------------------------------------------------- */
-/*
-  Floating glass pill — top right.
-  Stretches/shrinks with a springy width animation when
-  the label changes (handled in JS).
-*/
 #pill {
   pointer-events: all;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  /* Glass fill — backdrop blur lets the background colour bleed through */
   background: rgba(255, 255, 255, 0.18);
   backdrop-filter: blur(24px) saturate(220%);
   -webkit-backdrop-filter: blur(24px) saturate(220%);
-  /* Crisp border with a slight inner highlight */
   border: 1px solid rgba(255, 255, 255, 0.26);
   border-radius: 999px;
-  padding: 11px 24px;
-  /* Width animates with a spring when label changes */
+  padding: 9px 20px;
   transition: width 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
   width: max-content;
   overflow: hidden;
@@ -128,13 +123,13 @@ body {
     inset 0 -1px 0  rgba(0, 0, 0, 0.10),
     0 6px 28px       rgba(0, 0, 0, 0.32),
     0 1px 4px        rgba(0, 0, 0, 0.18);
-  /* Align baseline with the title */
-  margin-top: 8px;
+  margin-top: 6px;
+  /* never shrink — if space is tight the title shrinks first */
   flex-shrink: 0;
 }
 
 #pill-label {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   color: #ffffff;
   letter-spacing: 0.1px;
@@ -142,9 +137,7 @@ body {
   transition: opacity 0.15s ease;
 }
 
-#pill-label.fading {
-  opacity: 0;
-}
+#pill-label.fading { opacity: 0; }
 
 /* --- Carousel Viewport ------------------------------------ */
 #carousel-viewport {
@@ -165,33 +158,34 @@ body {
   -webkit-user-select: none;
 }
 
-/*
-  Snap easing — expo-out curve used in most Apple spring animations.
-  Settles quickly, no overshoot, feels physical.
-*/
 #strip.snapping {
   transition: transform 0.38s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 /* --- Pages ------------------------------------------------ */
+/*
+  Top padding clears the fixed header.
+  Bottom padding clears the dots indicator AND the home-bar on iPhone
+  (env safe-area-inset-bottom).  We add a generous 48px on top of
+  safe-area so content never sits flush against the bottom edge.
+*/
 .page {
   flex: 0 0 100vw;
   width: 100vw;
   height: 100%;
   display: flex;
   flex-direction: column;
-  /* Top: clears the fixed header comfortably */
-  padding-top:    calc(env(safe-area-inset-top, 16px) + 118px);
-  padding-left:   18px;
-  padding-right:  18px;
-  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 40px);
+  padding-top:    calc(env(safe-area-inset-top, 0px) + 100px);
+  padding-left:   max(14px, env(safe-area-inset-left, 14px));
+  padding-right:  max(14px, env(safe-area-inset-right, 14px));
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 48px);
   position: relative;
 }
 
 /* --- Card ------------------------------------------------- */
 /*
-  Dark glass card — the main content surface.
-  Deep blur + layered shadows create the Apple Sports tile depth.
+  Placeholder card for pages that don't have a tool yet.
+  The budget page removes this card and renders its own tile grid.
 */
 .card {
   flex: 1;
@@ -206,16 +200,12 @@ body {
   overflow: hidden;
   position: relative;
   box-shadow:
-    /* Inner top highlight — simulates glass thickness */
     inset 0 1px 0   rgba(255, 255, 255, 0.08),
-    /* Inner bottom shadow — grounding the card */
     inset 0 -1px 0  rgba(0, 0, 0, 0.22),
-    /* Main depth shadow */
     0 20px 60px     rgba(0, 0, 0, 0.45),
     0  6px 16px     rgba(0, 0, 0, 0.28);
 }
 
-/* Soft horizontal shine line at the very top of the card */
 .card::before {
   content: "";
   position: absolute;
@@ -233,7 +223,6 @@ body {
   border-radius: 999px;
 }
 
-/* Card section label — subtle all-caps above content */
 .card-title {
   font-size: 11px;
   font-weight: 700;
@@ -243,7 +232,6 @@ body {
   margin-bottom: 10px;
 }
 
-/* Placeholder area — swapped out when tool content is added */
 .card-placeholder {
   flex: 1;
   display: flex;
@@ -261,10 +249,10 @@ body {
 /* --- Page Indicator Dots ---------------------------------- */
 #dots {
   position: fixed;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 22px);
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 14px);
   left: 0;
   right: 0;
-  z-index: 100;
+  z-index: 200;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -293,38 +281,52 @@ body {
    BUDGET TOOL
    ================================================================ */
 
-/* ── Content area ───────────────────────────────────────────── */
+/*
+  The budget page removes the outer card entirely and renders its own
+  tile grid directly inside .page. The card element is still in the
+  DOM (injected by app.js) but we strip all its visual chrome.
+*/
+.card--budget {
+  background: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+  overflow: hidden;
+  /* Must be bounded so #card-content-budget can scroll within it */
+  display: flex;
+  flex-direction: column;
+}
+.card--budget::before { display: none; }
 .card--budget .card-title { display: none; }
 
+/* Scrollable content area inside the (now invisible) card */
 #card-content-budget {
   flex: 1;
   min-height: 0;
-  overflow-y: scroll;     /* always-scrollable so drag works even when content fits */
-  overflow-x: hidden;     /* never allow horizontal scroll */
+  overflow-y: scroll;
+  overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
   display: block;
-  padding: 0 2px 16px;
-  /* Hide all scrollbars — scroll is driven by touch/pointer drag */
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
 #card-content-budget::-webkit-scrollbar { display: none; }
 
-/* Prevent any child from causing horizontal overflow */
-.b-root { min-width: 0; max-width: 100%; }
-.b-root * { min-width: 0; }
+/* Prevent children from causing horizontal overflow */
+.b-root     { min-width: 0; max-width: 100%; }
+.b-root *   { min-width: 0; }
 
 
-/* ── Root grid — mobile first ───────────────────────────────── */
-/*
-  On mobile:  single column, DOM order
-  ≥ 680px:   two columns, named areas
-  ≥ 960px:   calendar pinned to left column, controls stack on right
-*/
+/* ── Root grid ──────────────────────────────────────────────── */
 .b-root {
   display: grid;
   gap: 10px;
-  padding-bottom: 4px;
+  padding-bottom: 8px;
+  /* rows shrink-wrap their content — don't stretch to fill scroll area */
+  align-content: start;
 }
 
 @media (min-width: 680px) {
@@ -361,7 +363,6 @@ body {
       "summary  summary"
       "cats     cats";
   }
-  /* Calendar column: self-start so it doesn't stretch to match the right column */
   .b-area-calendar { align-self: start; }
 }
 
@@ -374,7 +375,6 @@ body {
   padding: 16px;
 }
 
-/* Section label — small all-caps separator */
 .b-label {
   font-size: 10px;
   font-weight: 700;
@@ -384,17 +384,54 @@ body {
   margin-bottom: 12px;
 }
 
-/* Utility */
 .b-hidden { display: none !important; }
+
+
+/* ── Unified ghost button — used for ALL action buttons ─────── */
+/*
+  One button style: transparent, white text, subtle border.
+  Hover/active darken slightly. No green, no solid white.
+*/
+.b-btn-ghost,
+.b-btn-primary,
+.b-btn-add,
+.b-btn-income {
+  background: rgba(255,255,255,0.10);
+  border: 1px solid rgba(255,255,255,0.16);
+  border-radius: 10px;
+  color: #fff;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, opacity 0.15s ease;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.b-btn-ghost:hover,
+.b-btn-primary:hover,
+.b-btn-add:hover,
+.b-btn-income:hover  { background: rgba(255,255,255,0.17); }
+
+.b-btn-ghost:active,
+.b-btn-primary:active,
+.b-btn-add:active,
+.b-btn-income:active { background: rgba(255,255,255,0.24); }
+
+/* Size variants */
+.b-btn-ghost   { padding: 6px 14px; font-size: 13px; border-radius: 8px; flex-shrink: 0; }
+.b-btn-primary { padding: 11px 20px; }
+.b-btn-add     { width: 100%; padding: 12px; font-size: 15px; font-weight: 700; }
+.b-btn-income  { padding: 0 18px; height: 40px; flex-shrink: 0; }
 
 
 /* ── Setup bar ──────────────────────────────────────────────── */
 .b-setup-bar {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
 }
 
 .b-setup-text {
@@ -402,30 +439,17 @@ body {
   font-weight: 400;
   color: rgba(255,255,255,0.52);
   line-height: 1.5;
+  min-width: 0;
+  /* Always wrap — never truncate */
+  white-space: normal;
+  overflow: visible;
 }
-.b-setup-text strong  { font-weight: 600; color: #fff; }
-.b-setup-extra        { font-size: 12px; font-weight: 500; color: rgba(52,199,89,0.75); }
+.b-setup-text strong { font-weight: 600; color: #fff; }
+.b-setup-extra       { font-size: 12px; font-weight: 500; color: rgba(52,199,89,0.75); }
 
-.b-btn-ghost {
-  background: rgba(255,255,255,0.10);
-  border: 1px solid rgba(255,255,255,0.14);
-  border-radius: 8px;
-  color: #fff;
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 500;
-  padding: 6px 14px;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: background 0.15s ease;
-}
-.b-btn-ghost:hover  { background: rgba(255,255,255,0.16); }
-.b-btn-ghost:active { background: rgba(255,255,255,0.22); }
-
-.b-setup-panel { margin-top: 14px; display: grid; gap: 10px; }
-
-.b-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.b-field   { display: flex; flex-direction: column; gap: 5px; }
+.b-setup-panel  { margin-top: 14px; display: grid; gap: 10px; }
+.b-two-col      { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.b-field        { display: flex; flex-direction: column; gap: 5px; }
 
 .b-field-lbl {
   font-size: 10px;
@@ -453,6 +477,11 @@ body {
 .b-input::placeholder { color: rgba(255,255,255,0.2); }
 .b-input:focus        { border-color: rgba(255,255,255,0.28); }
 
+/* Hide number input spinners */
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+
 select.b-input {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(255,255,255,0.32)'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
@@ -462,25 +491,17 @@ select.b-input {
 }
 option { background: #0f2418; color: #fff; }
 
-.b-btn-primary {
-  background: rgba(255,255,255,0.9);
-  border: none;
-  border-radius: 10px;
-  color: #0a2e14;
-  font-family: inherit;
-  font-size: 14px;
-  font-weight: 700;
+.b-setup-actions { display: flex; gap: 8px; align-items: center; }
+.b-setup-actions .b-btn-primary,
+.b-setup-actions .b-btn-ghost {
+  flex: 1;
+  text-align: center;
   padding: 11px 20px;
-  cursor: pointer;
-  transition: opacity 0.15s ease;
+  font-size: 14px;
 }
-.b-btn-primary:hover  { opacity: 0.86; }
-.b-btn-primary:active { opacity: 0.76; }
-
-.b-setup-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 
 
-/* ── Stat pills ─────────────────────────────────────────────── */
+/* ── Stat tiles ─────────────────────────────────────────────── */
 .b-stats-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -558,24 +579,6 @@ option { background: #0f2418; color: #fff; }
 }
 .b-income-entry .b-input { flex: 1; min-width: 0; }
 
-.b-btn-income {
-  background: rgba(52,199,89,0.18);
-  border: 1px solid rgba(52,199,89,0.28);
-  color: #34C759;
-  font-size: 13px;
-  font-weight: 700;
-  font-family: inherit;
-  letter-spacing: 0.2px;
-  padding: 0 18px;
-  height: 40px;
-  border-radius: 10px;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: background 0.15s ease, opacity 0.15s ease;
-}
-.b-btn-income:hover  { background: rgba(52,199,89,0.26); }
-.b-btn-income:active { opacity: 0.75; }
-
 .b-income-hint {
   margin-top: 8px;
   font-size: 11px;
@@ -593,22 +596,6 @@ option { background: #0f2418; color: #fff; }
   margin-bottom: 8px;
 }
 .b-entry-note { margin-bottom: 8px; }
-
-.b-btn-add {
-  width: 100%;
-  background: rgba(255,255,255,0.9);
-  border: none;
-  border-radius: 10px;
-  color: #0a2e14;
-  font-family: inherit;
-  font-size: 15px;
-  font-weight: 700;
-  padding: 12px;
-  cursor: pointer;
-  transition: opacity 0.15s ease;
-}
-.b-btn-add:hover  { opacity: 0.85; }
-.b-btn-add:active { opacity: 0.75; }
 
 
 /* ── Today's transaction list ───────────────────────────────── */
@@ -692,37 +679,51 @@ option { background: #0f2418; color: #fff; }
 
 
 /* ── Calendar ───────────────────────────────────────────────── */
-/*
-  Layout:
-    Title row = label left + legend right
-    Day-of-week header row
-    Cell grid (7 columns, aspect-ratio 1 cells)
-
-  Cell states:
-    --today         white ring, on track
-    --today-over    red ring, today already over budget
-    --under         green tint  (past, ≤ budget)
-    --over          red tint    (past, > budget)
-    --future        very dim
-    --empty         transparent (offset padding)
-*/
-
 .b-cal-title-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
 }
-.b-cal-title-row .b-label { margin-bottom: 0; }
+.b-cal-title-row .b-label { margin-bottom: 0; flex: 1; }
 
-/* Legend pills */
+.b-cal-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.b-cal-nav-btn {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  color: rgba(255,255,255,0.7);
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 2px 10px 4px;
+  line-height: 1;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.b-cal-nav-btn:hover { background: rgba(255,255,255,0.15); color: #fff; }
+.b-cal-nav-today {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  padding: 4px 10px;
+}
+
 .b-cal-legend {
   display: flex;
   gap: 5px;
   align-items: center;
   flex-wrap: wrap;
-  justify-content: flex-end;
+  justify-content: flex-start;
+  margin-bottom: 8px;
+  min-height: 0;
 }
 .b-cal-leg {
   font-size: 9px;
@@ -736,7 +737,6 @@ option { background: #0f2418; color: #fff; }
 .b-cal-leg--over  { background: rgba(255,59,48,0.14);  color: rgba(255,79,64,0.8); }
 .b-cal-leg--today { background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.7); }
 
-/* Pre-setup label annotation */
 .b-cal-unset {
   font-size: 9px;
   font-weight: 600;
@@ -745,7 +745,6 @@ option { background: #0f2418; color: #fff; }
   text-transform: none;
 }
 
-/* Weekday header */
 .b-cal-header {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -762,7 +761,6 @@ option { background: #0f2418; color: #fff; }
   padding: 2px 0 6px;
 }
 
-/* Cell grid */
 .b-cal-grid {
   display: grid;
   grid-template-columns: repeat(7, 1fr);
@@ -786,7 +784,6 @@ option { background: #0f2418; color: #fff; }
 .b-cal-cell--future           { background: rgba(255,255,255,0.025); }
 .b-cal-cell--under            { background: rgba(52,199,89,0.13); }
 .b-cal-cell--over             { background: rgba(255,59,48,0.13); }
-/* Pre-setup placeholder — same structure, but muted */
 .b-cal-cell--placeholder      { background: rgba(255,255,255,0.03); }
 .b-cal-cell--placeholder-past { background: rgba(255,255,255,0.015); }
 .b-cal-cell--placeholder      .b-cal-dn { color: rgba(255,255,255,0.18); }
@@ -796,15 +793,13 @@ option { background: #0f2418; color: #fff; }
   background: rgba(255,255,255,0.11);
   box-shadow: inset 0 0 0 1.5px rgba(255,255,255,0.38);
 }
-/* Today but already over budget — red ring instead */
 .b-cal-cell--today-over {
   background: rgba(255,59,48,0.13);
   box-shadow: inset 0 0 0 1.5px rgba(255,79,64,0.5);
 }
 
-/* Day number */
 .b-cal-dn {
-  font-size: 11px;
+  font-size: clamp(11px, 1.4vw, 16px);
   font-weight: 600;
   line-height: 1;
   color: rgba(255,255,255,0.62);
@@ -815,9 +810,8 @@ option { background: #0f2418; color: #fff; }
 .b-cal-cell--under      .b-cal-dn { color: rgba(255,255,255,0.7); }
 .b-cal-cell--over       .b-cal-dn { color: rgba(255,255,255,0.7); }
 
-/* Spent amount micro-label */
 .b-cal-ds {
-  font-size: 7px;
+  font-size: clamp(7px, 0.9vw, 12px);
   font-weight: 700;
   line-height: 1;
   color: rgba(255,255,255,0.28);
@@ -830,11 +824,6 @@ option { background: #0f2418; color: #fff; }
 
 
 /* ── Period summary ─────────────────────────────────────────── */
-/*
-  Six tiles:
-    Total Income · Total Spent · Remaining · Extra Added (conditional)
-    Days Under (green) · Days Over (red) · On Track (blue)
-*/
 .b-sum-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -869,20 +858,15 @@ option { background: #0f2418; color: #fff; }
   color: rgba(255,255,255,0.28);
 }
 
-/* Coloured tile variants */
-.b-sum-tile--under { border-color: rgba(52,199,89,0.2); }
-.b-sum-val--under  { color: #34C759; }
-
-.b-sum-tile--over  { border-color: rgba(255,59,48,0.2); }
-.b-sum-val--over   { color: #FF4F40; }
-
-.b-sum-tile--track { border-color: rgba(10,132,255,0.2); }
-.b-sum-val--track  { color: #0A84FF; }
-
+.b-sum-tile--under  { border-color: rgba(52,199,89,0.2); }
+.b-sum-val--under   { color: #34C759; }
+.b-sum-tile--over   { border-color: rgba(255,59,48,0.2); }
+.b-sum-val--over    { color: #FF4F40; }
+.b-sum-tile--track  { border-color: rgba(10,132,255,0.2); }
+.b-sum-val--track   { color: #0A84FF; }
 .b-sum-tile--income { border-color: rgba(52,199,89,0.2); }
 .b-sum-val--income  { color: #34C759; }
-
-.b-sum-val--neg { color: #FF4F40; }
+.b-sum-val--neg     { color: #FF4F40; }
 
 
 /* ── Spending by category ───────────────────────────────────── */
@@ -896,13 +880,7 @@ option { background: #0f2418; color: #fff; }
 }
 
 .b-cat-list { display: flex; flex-direction: column; gap: 10px; }
-
-.b-cat-row  {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-}
-
+.b-cat-row  { display: flex; align-items: center; gap: 9px; }
 .b-cat-dot  { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
 
 .b-cat-name {
@@ -948,5 +926,4 @@ option { background: #0f2418; color: #fff; }
   letter-spacing: -0.2px;
 }
 
-/* Pie donut */
 .b-pie-wrap { display: flex; align-items: center; justify-content: center; padding: 4px 0; }

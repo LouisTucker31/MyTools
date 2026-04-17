@@ -1,6 +1,6 @@
 /* ============================================================
    BUDGET TOOL — pages/budget.js
-   v5: polished calendar, summary, categories, pie
+   v6: period history, calendar navigation, auto-rollover
    ============================================================ */
 
 (function () {
@@ -49,17 +49,31 @@
     },
     transactions:      [],
     incomeAdjustments: [],
+    /*
+      periodHistory: array of completed-period snapshots, oldest first.
+      Each entry: { periodStart, periodEnd, disposableIncome, incomeAdjustments[] }
+      Written on rollover. Never mutated after writing.
+    */
+    periodHistory: [],
   };
 
-  let state       = loadState();
-  let computed    = {
+  let state = loadState();
+
+  // Current-period computed (always for the live period)
+  let computed = {
     days: [], today: null, baseDailyBudget: 0,
     totalIncome: 0, totalSpent: 0, totalRemaining: 0,
     daysUnder: 0, daysOver: 0, daysOnTrack: 0,
     categoryTotals: {}, extraIncomeTotal: 0,
   };
+
   let editingId   = null;
   let lastAddedId = null;
+
+  // Calendar view state — which month/year the calendar is showing
+  const nowForView = new Date();
+  let calViewYear  = nowForView.getFullYear();
+  let calViewMonth = nowForView.getMonth(); // 0-based
 
   function loadState() {
     try {
@@ -67,9 +81,10 @@
       if (!raw) return JSON.parse(JSON.stringify(DEFAULT_STATE));
       const saved = JSON.parse(raw);
       return {
-        settings:          Object.assign({}, DEFAULT_STATE.settings, saved.settings || {}),
-        transactions:      Array.isArray(saved.transactions)      ? saved.transactions      : [],
+        settings:       Object.assign({}, DEFAULT_STATE.settings, saved.settings || {}),
+        transactions:   Array.isArray(saved.transactions)      ? saved.transactions      : [],
         incomeAdjustments: Array.isArray(saved.incomeAdjustments) ? saved.incomeAdjustments : [],
+        periodHistory:  Array.isArray(saved.periodHistory)     ? saved.periodHistory     : [],
       };
     } catch {
       return JSON.parse(JSON.stringify(DEFAULT_STATE));
@@ -112,57 +127,71 @@
     return (CATEGORIES.find(c => c.name === name) || {}).color || '#8E8E93';
   }
 
+  // Is the calendar view showing the current live month?
+  function isViewingCurrentMonth() {
+    const now = new Date();
+    return calViewYear === now.getFullYear() && calViewMonth === now.getMonth();
+  }
 
-  /* ── 5. PERIOD INITIALISATION ─────────────────────────────── */
+
+  /* ── 5. PERIOD ROLLOVER ───────────────────────────────────── */
+  /*
+    checkRollover() runs on boot. If the saved period has ended
+    (today > periodEnd), it:
+      1. Saves a snapshot of the completed period into periodHistory
+      2. Advances to the new period (same income by default)
+      3. Clears incomeAdjustments for the new period
+    For paycheck mode, payday is kept as-is (user must update it).
+  */
+
+  function checkRollover() {
+    if (!state.settings.isSetup) return;
+    const today = todayISO();
+    const { periodEnd, periodMode } = state.settings;
+    if (!periodEnd || today <= periodEnd) return;
+
+    // Snapshot the completed period
+    state.periodHistory.push({
+      periodStart:       state.settings.periodStart,
+      periodEnd:         state.settings.periodEnd,
+      disposableIncome:  state.settings.disposableIncome,
+      incomeAdjustments: state.incomeAdjustments.slice(),
+    });
+
+    // Clear current-period income adjustments (they stay in the snapshot)
+    state.incomeAdjustments = [];
+
+    // Advance period dates
+    initPeriod();
+    saveState();
+  }
 
   function initPeriod() {
     const today = new Date();
-
     if (state.settings.periodMode === 'month') {
       const y = today.getFullYear(), m = today.getMonth();
       state.settings.periodStart = toISO(new Date(y, m, 1));
       state.settings.periodEnd   = toISO(new Date(y, m + 1, 0));
     } else {
-      // Paycheck mode: budget period is always today → payday.
-      // periodStart is always today; periodEnd is the saved payday.
-      // The calendar module renders the full current month independently —
-      // it never uses periodStart/periodEnd for its grid layout.
       state.settings.periodStart = todayISO();
-      // periodEnd (payday) is kept as set by the user — don't overwrite it.
+      // periodEnd (payday) kept as set by the user
     }
   }
 
 
   /* ── 6. CARRY-OVER ENGINE ─────────────────────────────────── */
-  /*
-    computeAll() is the sole writer to `computed`.
-
-    Day statuses:
-      'today'      — the current calendar day
-      'past-under' — completed day, spent ≤ available (green)
-      'past-over'  — completed day, spent > available  (red)
-      'future'     — not yet reached
-
-    "On track" in the summary counts today separately — it means
-    the current day is not yet over budget (carryOut ≥ 0).
-
-    Income redistribution:
-      Each incomeAdjustment spreads its amount equally across
-      today + all future days. The effectiveDate guard ensures
-      past days are never retroactively changed.
-  */
 
   function computeAll() {
     const { periodStart, periodEnd, disposableIncome } = state.settings;
     const days      = buildDayList(periodStart, periodEnd);
     const totalDays = days.length;
 
-    const base              = totalDays > 0 ? disposableIncome / totalDays : 0;
+    const base               = totalDays > 0 ? disposableIncome / totalDays : 0;
     computed.baseDailyBudget = base;
 
-    const dailyBudgets  = days.map(() => base);
-    const today         = todayISO();
-    let   extraTotal    = 0;
+    const dailyBudgets = days.map(() => base);
+    const today        = todayISO();
+    let   extraTotal   = 0;
 
     for (const adj of state.incomeAdjustments) {
       const effectiveDate = adj.date > today ? adj.date : today;
@@ -177,7 +206,6 @@
     computed.totalIncome      = disposableIncome + extraTotal;
 
     let carryIn = 0;
-
     for (let i = 0; i < days.length; i++) {
       const day        = days[i];
       day.baseBudget   = dailyBudgets[i];
@@ -194,22 +222,101 @@
       carryIn = day.carryOut;
     }
 
-    computed.days   = days;
-    computed.today  = days.find(d => d.status === 'today') || null;
+    computed.days  = days;
+    computed.today = days.find(d => d.status === 'today') || null;
 
-    const active              = days.filter(d => d.status !== 'future');
-    computed.totalSpent       = active.reduce((s, d) => s + d.spent, 0);
-    computed.totalRemaining   = computed.totalIncome - computed.totalSpent;
-    computed.daysUnder        = days.filter(d => d.status === 'past-under').length;
-    computed.daysOver         = days.filter(d => d.status === 'past-over').length;
-    // "On track" = today exists and hasn't gone over (carryOut ≥ 0)
-    computed.daysOnTrack      = (computed.today && computed.today.carryOut >= 0) ? 1 : 0;
+    const active            = days.filter(d => d.status !== 'future');
+    computed.totalSpent     = active.reduce((s, d) => s + d.spent, 0);
+    computed.totalRemaining = computed.totalIncome - computed.totalSpent;
+    computed.daysUnder      = days.filter(d => d.status === 'past-under').length;
+    computed.daysOver       = days.filter(d => d.status === 'past-over').length;
+    const todayOnTrack      = (computed.today && computed.today.carryOut >= 0) ? 1 : 0;
+    computed.daysOnTrack    = computed.daysUnder + todayOnTrack;
 
-    computed.categoryTotals   = {};
+    computed.categoryTotals = {};
     for (const t of state.transactions) {
       computed.categoryTotals[t.category] =
         (computed.categoryTotals[t.category] || 0) + t.amount;
     }
+  }
+
+  /*
+    computeForMonth(y, m) — re-runs the carry-over engine for an
+    arbitrary calendar month, using the matching period snapshot if
+    available, or current settings if it's the live month.
+    Returns the same shape as `computed` but scoped to that month.
+  */
+  function computeForMonth(y, m) {
+    const monthStart = toISO(new Date(y, m, 1));
+    const monthEnd   = toISO(new Date(y, m + 1, 0));
+
+    // Find the matching period snapshot (periodStart falls in same month)
+    const snapshot = state.periodHistory.find(h => {
+      const s = parseISO(h.periodStart);
+      return s.getFullYear() === y && s.getMonth() === m;
+    });
+
+    const income = snapshot ? snapshot.disposableIncome : state.settings.disposableIncome;
+    const adjs   = snapshot ? snapshot.incomeAdjustments : state.incomeAdjustments;
+
+    // Use the snapshot's actual period bounds if available, else full month
+    const start = snapshot ? snapshot.periodStart : monthStart;
+    const end   = snapshot ? snapshot.periodEnd   : monthEnd;
+
+    const days      = buildDayList(start, end);
+    const totalDays = days.length;
+    if (totalDays === 0) return { days: [], categoryTotals: {} };
+
+    const base         = income / totalDays;
+    const dailyBudgets = days.map(() => base);
+    const today        = todayISO();
+    let   extraTotal   = 0;
+
+    for (const adj of adjs) {
+      const effectiveDate = adj.date > today ? adj.date : today;
+      const idx           = days.findIndex(d => d.date >= effectiveDate);
+      if (idx === -1) continue;
+      const perDay = adj.amount / (days.length - idx);
+      for (let i = idx; i < days.length; i++) dailyBudgets[i] += perDay;
+      extraTotal += adj.amount;
+    }
+
+    let carryIn = 0;
+    for (let i = 0; i < days.length; i++) {
+      const day        = days[i];
+      day.baseBudget   = dailyBudgets[i];
+      day.carryIn      = carryIn;
+      day.available    = dailyBudgets[i] + carryIn;
+      day.transactions = state.transactions.filter(t => t.date === day.date);
+      day.spent        = day.transactions.reduce((s, t) => s + t.amount, 0);
+      day.carryOut     = day.available - day.spent;
+
+      if      (day.date === today) day.status = 'today';
+      else if (day.date  < today)  day.status = day.carryOut >= 0 ? 'past-under' : 'past-over';
+      else                         day.status = 'future';
+
+      carryIn = day.carryOut;
+    }
+
+    const cats = {};
+    for (const d of days) {
+      for (const t of d.transactions) {
+        cats[t.category] = (cats[t.category] || 0) + t.amount;
+      }
+    }
+
+    const totalSpent   = days.filter(d => d.status !== 'future').reduce((s, d) => s + d.spent, 0);
+    const totalIncome  = income + extraTotal;
+
+    return {
+      days, categoryTotals: cats,
+      totalIncome, totalSpent,
+      totalRemaining: totalIncome - totalSpent,
+      daysUnder:  days.filter(d => d.status === 'past-under').length,
+      daysOver:   days.filter(d => d.status === 'past-over').length,
+      extraIncomeTotal: extraTotal,
+      income,
+    };
   }
 
   function buildDayList(start, end) {
@@ -351,21 +458,26 @@
   <div class="b-module b-area-calendar">
     <div class="b-cal-title-row">
       <span class="b-label" id="b-cal-label">—</span>
-      <div class="b-cal-legend" id="b-cal-legend"></div>
+      <div class="b-cal-nav">
+        <button class="b-cal-nav-btn" id="b-cal-prev">‹</button>
+        <button class="b-cal-nav-btn b-cal-nav-today b-hidden" id="b-cal-today">Today</button>
+        <button class="b-cal-nav-btn" id="b-cal-next">›</button>
+      </div>
     </div>
+    <div class="b-cal-legend" id="b-cal-legend"></div>
     <div class="b-cal-header">${wdays}</div>
     <div class="b-cal-grid" id="b-cal-grid"></div>
   </div>
 
   <!-- G: Period summary -->
   <div class="b-module b-area-summary">
-    <div class="b-label">Period Summary</div>
+    <div class="b-label" id="b-sum-label">Period Summary</div>
     <div class="b-sum-grid" id="b-sum-grid"></div>
   </div>
 
   <!-- H: Categories + pie -->
   <div class="b-module b-area-cats">
-    <div class="b-label">Spending by Category</div>
+    <div class="b-label" id="b-cats-label">Spending by Category</div>
     <div class="b-cats-layout">
       <div class="b-cat-list" id="b-cat-list"></div>
       <div class="b-pie-wrap" id="b-pie-wrap"></div>
@@ -385,8 +497,7 @@
     renderList();
     renderIncome();
     renderCalendar();
-    renderSummary();
-    renderCategories();
+    renderSummaryAndCats();
   }
 
   // ── Setup bar ────────────────────────────────────────────────
@@ -413,7 +524,7 @@
       : fmt(disposableIncome);
 
     el.innerHTML =
-      `<strong>${incomeDisplay}</strong> · ${periodStr} · ` +
+      `<strong>${incomeDisplay}</strong> · ${periodStr}<br>` +
       `<strong>${daysLeft} day${daysLeft !== 1 ? 's' : ''} left</strong>`;
   }
 
@@ -424,7 +535,7 @@
     if (!el) return;
 
     if (!state.settings.isSetup || !computed.today) {
-      el.innerHTML = ["Today's Limit", 'Spent Today', 'Carried In', 'Remaining']
+      el.innerHTML = ["Today's Limit", 'Spent Today', 'Carried Over', 'Remaining']
         .map(lbl => `<div class="b-stat">
           <span class="b-stat-val">—</span>
           <span class="b-stat-lbl">${lbl}</span></div>`).join('');
@@ -441,11 +552,11 @@
         <span class="b-stat-val">${fmt(t.spent)}</span>
         <span class="b-stat-lbl">Spent Today</span>
       </div>
-      <div class="b-stat ${t.carryIn >= 0 ? 'b-stat--pos' : 'b-stat--neg'}">
+      <div class="b-stat ${t.carryIn > 0 ? 'b-stat--pos' : t.carryIn < 0 ? 'b-stat--neg' : ''}">
         <span class="b-stat-val">${fmtSgn(t.carryIn)}</span>
-        <span class="b-stat-lbl">Carried In</span>
+        <span class="b-stat-lbl">Carried Over</span>
       </div>
-      <div class="b-stat ${t.carryOut >= 0 ? 'b-stat--pos' : 'b-stat--neg'}">
+      <div class="b-stat ${t.carryOut < 0 ? 'b-stat--neg' : ''}">
         <span class="b-stat-val">${fmtBal(t.carryOut)}</span>
         <span class="b-stat-lbl">Remaining</span>
       </div>`;
@@ -482,7 +593,7 @@
   // ── Today label ──────────────────────────────────────────────
 
   function renderTodayLabel() {
-    const el  = document.getElementById('b-today-label');
+    const el = document.getElementById('b-today-label');
     if (!el) return;
     const now = new Date();
     el.textContent =
@@ -558,64 +669,53 @@
   }
 
   // ── Calendar ─────────────────────────────────────────────────
-  /*
-    Cell states visualised:
-      today + carryOut ≥ 0  → b-cal-cell--today      (white ring, on track)
-      today + carryOut < 0  → b-cal-cell--today b-cal-cell--today-over  (red tint ring)
-      past, carryOut ≥ 0    → b-cal-cell--under       (green tint)
-      past, carryOut < 0    → b-cal-cell--over         (red tint)
-      future                → b-cal-cell--future       (dim)
-
-    Spent amount shown below day number for all active + today cells.
-    Available amount shown as a small hint on hover (desktop) for future cells.
-  */
 
   function renderCalendar() {
     const gridEl   = document.getElementById('b-cal-grid');
     const labelEl  = document.getElementById('b-cal-label');
     const legendEl = document.getElementById('b-cal-legend');
+    const todayBtn = document.getElementById('b-cal-today');
     if (!gridEl || !labelEl) return;
 
-    // The calendar ALWAYS shows the full current calendar month.
-    // Budget data (colours, spent amounts) is overlaid per-day using
-    // the computed.days lookup. This means paycheck mode and month mode
-    // both produce the same full-month grid — only the coloured cells differ.
-    const now   = new Date();
-    const y     = now.getFullYear();
-    const m     = now.getMonth();
+    const y     = calViewYear;
+    const m     = calViewMonth;
     const total = new Date(y, m + 1, 0).getDate();
     const today = todayISO();
+    const isCurrent = isViewingCurrentMonth();
 
-    const { periodMode, periodEnd } = state.settings;
+    // Show/hide Today button
+    if (todayBtn) todayBtn.classList.toggle('b-hidden', isCurrent);
+
+    // Get computed data for the viewed month
+    const viewData = isCurrent ? computed : computeForMonth(y, m);
+    const dayMap   = {};
+    for (const d of viewData.days) dayMap[d.date] = d;
+
     const isSetup = state.settings.isSetup;
+    const { periodMode, periodEnd } = state.settings;
 
-    // Label: always show the current month, with payday annotation if paycheck mode
-    if (isSetup && periodMode === 'paycheck' && periodEnd) {
-      const paydayDate = parseISO(periodEnd);
-      labelEl.innerHTML =
-        `${MONTH_NAMES[m]} ${y} <span class="b-cal-unset">· payday ${shortDate(paydayDate)}</span>`;
-    } else if (isSetup) {
-      labelEl.textContent = `${MONTH_NAMES[m]} ${y}`;
-    } else {
+    // Label
+    if (!isSetup) {
       labelEl.innerHTML =
         `${MONTH_NAMES[m]} ${y} <span class="b-cal-unset">· set up to activate</span>`;
+    } else if (isCurrent && periodMode === 'paycheck' && periodEnd) {
+      labelEl.innerHTML =
+        `${MONTH_NAMES[m]} ${y} <span class="b-cal-unset">· payday ${shortDate(parseISO(periodEnd))}</span>`;
+    } else {
+      labelEl.textContent = `${MONTH_NAMES[m]} ${y}`;
     }
 
-    // Legend — only show once there's some past activity
+    // Legend
     if (legendEl) {
-      const hasActivity = computed.days.some(d => d.status === 'past-under' || d.status === 'past-over');
+      const hasActivity = viewData.days.some(d => d.status === 'past-under' || d.status === 'past-over');
       legendEl.innerHTML = !isSetup ? '' : hasActivity ? `
         <span class="b-cal-leg b-cal-leg--under">Under</span>
         <span class="b-cal-leg b-cal-leg--over">Over</span>
-        <span class="b-cal-leg b-cal-leg--today">Today</span>` : `
-        <span class="b-cal-leg b-cal-leg--today">Today</span>`;
+        <span class="b-cal-leg b-cal-leg--today">Today</span>` :
+        isCurrent ? `<span class="b-cal-leg b-cal-leg--today">Today</span>` : '';
     }
 
-    // Build a lookup map: ISO date → computed day object
-    const dayMap = {};
-    for (const d of computed.days) dayMap[d.date] = d;
-
-    // Offset grid so day 1 lands on the correct weekday (Mon=0 … Sun=6)
+    // Grid offset — Mon=0 … Sun=6
     let dow = new Date(y, m, 1).getDay();
     dow = dow === 0 ? 6 : dow - 1;
 
@@ -625,28 +725,26 @@
     }
 
     for (let d = 1; d <= total; d++) {
-      const iso      = toISO(new Date(y, m, d));
-      const computed = dayMap[iso];   // undefined if outside budget period
-      const isToday  = iso === today;
-      const isPast   = iso  < today;
+      const iso     = toISO(new Date(y, m, d));
+      const dayData = dayMap[iso];
+      const isToday = iso === today;
+      const isPast  = iso  < today;
 
       let cls = 'b-cal-cell';
 
-      if (computed) {
-        // Day is inside the active budget period — apply status colour
-        if (computed.status === 'today') {
-          cls += computed.carryOut >= 0
+      if (dayData) {
+        if (dayData.status === 'today') {
+          cls += dayData.carryOut >= 0
             ? ' b-cal-cell--today'
             : ' b-cal-cell--today b-cal-cell--today-over';
-        } else if (computed.status === 'past-over') {
+        } else if (dayData.status === 'past-over') {
           cls += ' b-cal-cell--over';
-        } else if (computed.status === 'past-under') {
+        } else if (dayData.status === 'past-under') {
           cls += ' b-cal-cell--under';
         } else {
           cls += ' b-cal-cell--future';
         }
       } else if (isToday) {
-        // Today but outside the budget period (shouldn't happen normally)
         cls += ' b-cal-cell--today';
       } else if (isPast) {
         cls += ' b-cal-cell--placeholder-past';
@@ -654,12 +752,12 @@
         cls += ' b-cal-cell--placeholder';
       }
 
-      const showSpent = computed && computed.status !== 'future' && computed.spent > 0;
+      const showSpent = dayData && dayData.status !== 'future' && dayData.spent > 0;
       const spentEl   = showSpent
-        ? `<span class="b-cal-ds">${fmtSpent(computed.spent)}</span>`
+        ? `<span class="b-cal-ds">${fmtSpent(dayData.spent)}</span>`
         : '';
 
-      const titleAttr = computed ? `title="${calCellTitle(computed)}"` : '';
+      const titleAttr = dayData ? `title="${calCellTitle(dayData)}"` : '';
 
       html += `<div class="${cls}" ${titleAttr}>
         <span class="b-cal-dn">${d}</span>${spentEl}
@@ -669,7 +767,6 @@
     gridEl.innerHTML = html;
   }
 
-  // Format spent amount to fit inside a tiny cell
   function fmtSpent(n) {
     if (n < 10)   return '£' + n.toFixed(1);
     if (n < 1000) return '£' + Math.round(n);
@@ -682,71 +779,86 @@
     return `${day.date} · Spent £${day.spent.toFixed(2)} · Balance £${day.carryOut.toFixed(2)}`;
   }
 
-  // ── Period summary ───────────────────────────────────────────
+  // ── Summary + Categories (context-aware) ─────────────────────
   /*
-    Tiles shown:
-      Total Income  (base + any extras)
-      Total Spent
-      Remaining     (coloured red if negative)
-      Days Under    (green)
-      Days Over     (red)
-      On Track      (blue — today is ≥ 0 balance)
+    When viewing a past month, the summary and category breakdown
+    reflect that month's data from its period snapshot.
+    When viewing the current month, uses live computed data.
   */
 
-  function renderSummary() {
-    const el = document.getElementById('b-sum-grid');
+  function renderSummaryAndCats() {
+    const isCurrent = isViewingCurrentMonth();
+    const viewData  = isCurrent ? computed : computeForMonth(calViewYear, calViewMonth);
+    renderSummary(viewData, isCurrent);
+    renderCategories(viewData, isCurrent);
+  }
+
+  function renderSummary(data, isCurrent) {
+    const el       = document.getElementById('b-sum-grid');
+    const labelEl  = document.getElementById('b-sum-label');
     if (!el) return;
 
-    const remainCls = computed.totalRemaining < 0 ? ' b-sum-val--neg' : '';
+    if (labelEl) {
+      labelEl.textContent = isCurrent
+        ? 'Period Summary'
+        : `${MONTH_NAMES[calViewMonth]} ${calViewYear} Summary`;
+    }
 
-    const extraLine = computed.extraIncomeTotal > 0
+    if (!state.settings.isSetup) {
+      el.innerHTML = '<div class="b-txn-empty" style="padding:8px 0">Set up your budget to see summary</div>';
+      return;
+    }
+
+    const remainCls = data.totalRemaining < 0 ? ' b-sum-val--neg' : '';
+
+    const extraLine = data.extraIncomeTotal > 0
       ? `<div class="b-sum-tile b-sum-tile--income">
-           <div class="b-sum-val b-sum-val--income">+${fmt(computed.extraIncomeTotal)}</div>
+           <div class="b-sum-val b-sum-val--income">+${fmt(data.extraIncomeTotal)}</div>
            <div class="b-sum-lbl">Extra Added</div>
          </div>`
       : '';
 
     el.innerHTML = `
 <div class="b-sum-tile">
-  <div class="b-sum-val">${fmt(computed.totalIncome)}</div>
+  <div class="b-sum-val">${fmt(data.totalIncome)}</div>
   <div class="b-sum-lbl">Total Income</div>
 </div>
 <div class="b-sum-tile">
-  <div class="b-sum-val">${fmt(computed.totalSpent)}</div>
+  <div class="b-sum-val">${fmt(data.totalSpent)}</div>
   <div class="b-sum-lbl">Total Spent</div>
 </div>
 <div class="b-sum-tile">
-  <div class="b-sum-val${remainCls}">${fmtBal(computed.totalRemaining)}</div>
+  <div class="b-sum-val${remainCls}">${fmtBal(data.totalRemaining)}</div>
   <div class="b-sum-lbl">Remaining</div>
 </div>
 ${extraLine}
 <div class="b-sum-tile b-sum-tile--under">
-  <div class="b-sum-val b-sum-val--under">${computed.daysUnder}</div>
+  <div class="b-sum-val b-sum-val--under">${data.daysUnder}</div>
   <div class="b-sum-lbl">Days Under</div>
 </div>
 <div class="b-sum-tile b-sum-tile--over">
-  <div class="b-sum-val b-sum-val--over">${computed.daysOver}</div>
+  <div class="b-sum-val b-sum-val--over">${data.daysOver}</div>
   <div class="b-sum-lbl">Days Over</div>
 </div>
 <div class="b-sum-tile b-sum-tile--track">
-  <div class="b-sum-val b-sum-val--track">${computed.daysOnTrack ? '✓' : '—'}</div>
-  <div class="b-sum-lbl">On Track</div>
+  <div class="b-sum-val b-sum-val--track">${isCurrent ? computed.daysOnTrack : data.daysUnder}</div>
+  <div class="b-sum-lbl">Days On Track</div>
 </div>`;
   }
 
-  // ── Categories + pie ─────────────────────────────────────────
-  /*
-    Each row shows: colour dot · name · bar (filled to % of total) · £amount · % label
-    The SVG donut segments have a 2px gap between them via a slight
-    angular padding so they read as distinct slices.
-  */
-
-  function renderCategories() {
-    const listEl = document.getElementById('b-cat-list');
-    const pieEl  = document.getElementById('b-pie-wrap');
+  function renderCategories(data, isCurrent) {
+    const listEl   = document.getElementById('b-cat-list');
+    const pieEl    = document.getElementById('b-pie-wrap');
+    const labelEl  = document.getElementById('b-cats-label');
     if (!listEl || !pieEl) return;
 
-    const totals     = computed.categoryTotals;
+    if (labelEl) {
+      labelEl.textContent = isCurrent
+        ? 'Spending by Category'
+        : `${MONTH_NAMES[calViewMonth]} Spending`;
+    }
+
+    const totals     = data.categoryTotals || {};
     const grandTotal = Object.values(totals).reduce((s, v) => s + v, 0);
 
     if (grandTotal === 0) {
@@ -779,26 +891,17 @@ ${extraLine}
     pieEl.innerHTML = buildPie(cats, grandTotal);
   }
 
-  // ── SVG donut pie ────────────────────────────────────────────
-  /*
-    Segments are drawn as filled SVG paths (arc + inner arc back).
-    A small angular gap (GAP_RAD) is applied at both edges of each
-    segment so slices read as clearly separate even on small screens.
-  */
-
   function buildPie(cats, total) {
     const cx = 50, cy = 50, r = 40, ri = 25;
-    const GAP_RAD = 0.04; // ~2° gap between segments in radians
+    const GAP_RAD = 0.04;
 
     let angle = -Math.PI / 2;
     let paths = '';
 
     cats.forEach(c => {
-      const sweep    = (c.amount / total) * 2 * Math.PI;
-      const a0       = angle       + GAP_RAD;
-      const a1       = angle + sweep - GAP_RAD;
-
-      // Skip segments too small to draw cleanly
+      const sweep = (c.amount / total) * 2 * Math.PI;
+      const a0    = angle       + GAP_RAD;
+      const a1    = angle + sweep - GAP_RAD;
       if (a1 <= a0) { angle += sweep; return; }
 
       const large = (a1 - a0) > Math.PI ? 1 : 0;
@@ -813,11 +916,9 @@ ${extraLine}
       const [ix0,iy0] = pt(a0, ri);
 
       paths += `<path d="M${ox0} ${oy0} A${r} ${r} 0 ${large} 1 ${ox1} ${oy1} L${ix1} ${iy1} A${ri} ${ri} 0 ${large} 0 ${ix0} ${iy0}Z" fill="${c.color}"/>`;
-
       angle += sweep;
     });
 
-    // Inner ring border
     paths += `<circle cx="50" cy="50" r="${ri}" fill="rgba(0,0,0,0.18)"/>`;
     paths += `<circle cx="50" cy="50" r="${ri}" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="0.5"/>`;
 
@@ -1023,9 +1124,29 @@ ${extraLine}
       row.querySelector('.b-txn-save')?.click();
     });
 
-    // ── Drag-to-scroll on the card content area ───────────────────
-    // Gives smooth pointer-drag scrolling (mouse or touch) without
-    // any visible scrollbar. Momentum coasts after release.
+    // Calendar navigation
+    document.getElementById('b-cal-prev')?.addEventListener('click', () => {
+      calViewMonth--;
+      if (calViewMonth < 0) { calViewMonth = 11; calViewYear--; }
+      renderCalendar();
+      renderSummaryAndCats();
+    });
+
+    document.getElementById('b-cal-next')?.addEventListener('click', () => {
+      calViewMonth++;
+      if (calViewMonth > 11) { calViewMonth = 0; calViewYear++; }
+      renderCalendar();
+      renderSummaryAndCats();
+    });
+
+    document.getElementById('b-cal-today')?.addEventListener('click', () => {
+      const now    = new Date();
+      calViewYear  = now.getFullYear();
+      calViewMonth = now.getMonth();
+      renderCalendar();
+      renderSummaryAndCats();
+    });
+
     wireScrollDrag(container);
   }
 
@@ -1038,7 +1159,6 @@ ${extraLine}
     let lastT       = 0;
     let velY        = 0;
     let momentumId  = null;
-    // Minimum pixels moved before we treat it as a drag (vs. a tap/click)
     const DRAG_THRESHOLD = 4;
     let moved = false;
 
@@ -1054,7 +1174,6 @@ ${extraLine}
       el.style.cursor = '';
 
       if (!kick) return;
-      // Momentum: exponential-decay coast after release
       if (Math.abs(velY) > 0.05) {
         let v = -velY * 14;
         const decay = 0.91;
@@ -1070,11 +1189,11 @@ ${extraLine}
 
     el.addEventListener('pointerdown', e => {
       if (!e.isPrimary) return;
-      // Skip interactive elements — let them receive their own events
       const tag = e.target.tagName;
       if (tag === 'INPUT' || tag === 'SELECT' || tag === 'BUTTON' || tag === 'TEXTAREA') return;
 
       cancelMomentum();
+      // Track intent but don't capture yet — only capture once threshold is crossed
       dragging    = true;
       moved       = false;
       pointerId   = e.pointerId;
@@ -1083,19 +1202,18 @@ ${extraLine}
       lastY       = e.clientY;
       lastT       = e.timeStamp;
       velY        = 0;
-
-      // Don't preventDefault here — let the browser handle text selection etc.
-      // setPointerCapture ensures move/up fire even when cursor leaves the element.
-      try { el.setPointerCapture(e.pointerId); } catch (_) {}
     });
 
     el.addEventListener('pointermove', e => {
       if (!dragging || e.pointerId !== pointerId) return;
 
       const dy = e.clientY - startY;
-
-      // Only commit to drag mode after threshold — preserves click intent
       if (!moved && Math.abs(dy) < DRAG_THRESHOLD) return;
+
+      // First time we cross the threshold — capture the pointer
+      if (!moved) {
+        try { el.setPointerCapture(e.pointerId); } catch (_) {}
+      }
       moved = true;
 
       const dt = e.timeStamp - lastT;
@@ -1104,25 +1222,20 @@ ${extraLine}
       lastT = e.timeStamp;
 
       el.scrollTop = startScroll - dy;
-      // Only suppress default once we've confirmed it's a drag
       e.preventDefault();
     }, { passive: false });
 
-    // pointerup: normal release
     el.addEventListener('pointerup', e => {
       if (e.pointerId !== pointerId) return;
       try { el.releasePointerCapture(e.pointerId); } catch (_) {}
-      stopDrag(moved); // only kick momentum if we actually dragged
+      stopDrag(moved);
     });
 
-    // pointercancel: browser interrupted (e.g. scroll took over)
     el.addEventListener('pointercancel', e => {
       if (e.pointerId !== pointerId) return;
       stopDrag(false);
     });
 
-    // lostpointercapture: fires when capture is released for ANY reason,
-    // including mouse-up outside the browser window — the sticky-click fix.
     el.addEventListener('lostpointercapture', e => {
       if (e.pointerId !== pointerId) return;
       stopDrag(moved);
@@ -1139,6 +1252,10 @@ ${extraLine}
 
   /* ── 12. BOOT ─────────────────────────────────────────────── */
 
+  // Auto-rollover: if the saved period has ended, snapshot it and advance
+  checkRollover();
+
+  // For month mode, always sync periodStart/End to current month
   if (state.settings.isSetup && state.settings.periodMode === 'month') {
     initPeriod();
     saveState();
