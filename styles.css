@@ -37,12 +37,13 @@ body {
 }
 
 /* DIAGNOSTIC — remove after testing */
-body::after {
-  content: "BODY ENDS HERE";
-  position: fixed;
+#app::after {
+  content: "APP ENDS HERE";
+  position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
+  height: 20px;
   background: yellow;
   color: black;
   font-size: 12px;
