@@ -38,7 +38,7 @@ const pillLabel  = document.getElementById("pill-label");
 const pill       = document.getElementById("pill");
 const dotsWrap   = document.createElement("div");
 dotsWrap.id      = "dots";
-document.body.appendChild(dotsWrap);
+document.getElementById("app").appendChild(dotsWrap);
 
 
 /* ── 3. BUILD DOM ───────────────────────────────────────────
@@ -451,13 +451,13 @@ function onPointerUp(e) {
    stacking context) down by visualViewport.offsetTop so the UI
    stays pinned in its original position.
    ─────────────────────────────────────────────────────────── */
+const appEl = document.getElementById("app");
+
 function syncToVisualViewport() {
   const vv = window.visualViewport;
   if (!vv) return;
-  // offsetTop = how far the layout viewport has scrolled to accommodate keyboard
-  // Translate body down by that amount to cancel the shift
   const offset = Math.round(vv.offsetTop);
-  document.body.style.setProperty("--vv-offset", `${offset}px`);
+  appEl.style.setProperty("--vv-offset", `${offset}px`);
 }
 
 if (window.visualViewport) {

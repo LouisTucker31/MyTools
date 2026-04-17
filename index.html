@@ -12,22 +12,27 @@
 </head>
 <body>
 
-  <!-- Fixed background layer — colour blends happen here -->
-  <div id="bg"></div>
+  <!-- Single app shell — translated by JS to resist iOS keyboard push -->
+  <div id="app">
 
-  <!-- Fixed header — never moves -->
-  <header id="header">
-    <h1 id="app-title">My Tools</h1>
-    <div id="pill">
-      <span id="pill-label">Budget</span>
-    </div>
-  </header>
+    <!-- Fixed background layer — colour blends happen here -->
+    <div id="bg"></div>
 
-  <!-- Swipeable carousel -->
-  <div id="carousel-viewport">
-    <div id="strip">
-      <!-- Pages are injected here by app.js -->
+    <!-- Fixed header — never moves -->
+    <header id="header">
+      <h1 id="app-title">My Tools</h1>
+      <div id="pill">
+        <span id="pill-label">Budget</span>
+      </div>
+    </header>
+
+    <!-- Swipeable carousel -->
+    <div id="carousel-viewport">
+      <div id="strip">
+        <!-- Pages are injected here by app.js -->
+      </div>
     </div>
+
   </div>
 
   <script src="app.js"></script>

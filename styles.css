@@ -33,26 +33,23 @@ body {
   color: #ffffff;
   overscroll-behavior: none;
   position: relative;
-  --vv-offset: 0px;
 }
 
-/* Compensate for iOS keyboard pushing fixed elements up.
-   visualViewport.offsetTop is set as --vv-offset by app.js.
-   #bg is excluded — it stays full-screen at all times. */
-#header,
-#carousel-viewport,
-#dots {
+/* Single full-screen shell. All children use position:absolute
+   relative to this. JS sets --vv-offset to resist iOS keyboard push. */
+#app {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  --vv-offset: 0px;
   transform: translateY(var(--vv-offset));
   transition: transform 0.22s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 /* --- Background ------------------------------------------- */
 #bg {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: -100px; /* overextend to prevent any gap at the bottom edge */
+  position: absolute;
+  inset: 0;
   z-index: 0;
   background-color: #0a2e14;
   background-image:
@@ -90,7 +87,7 @@ body {
   the gap area; the pill re-enables pointer-events for itself.
 */
 #header {
-  position: fixed;
+  position: absolute;
   top: 0;
   left: 0;
   right: 0;
@@ -162,7 +159,7 @@ body {
 
 /* --- Carousel Viewport ------------------------------------ */
 #carousel-viewport {
-  position: fixed;
+  position: absolute;
   inset: 0;
   z-index: 10;
   overflow: hidden;
@@ -269,7 +266,7 @@ body {
 
 /* --- Page Indicator Dots ---------------------------------- */
 #dots {
-  position: fixed;
+  position: absolute;
   bottom: max(20px, calc(env(safe-area-inset-bottom, 0px) + 20px));
   left: 0;
   right: 0;
