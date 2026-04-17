@@ -1,0 +1,952 @@
+/* ============================================================
+   MY TOOLS — styles.css
+   Mobile-first, Apple Sports inspired
+   ============================================================ */
+
+/* --- Reset & Base ----------------------------------------- */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  height: 100%;
+  height: 100dvh;
+}
+
+body {
+  height: 100%;
+  height: 100dvh;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display",
+               "Helvetica Neue", sans-serif;
+  color: #ffffff;
+  overscroll-behavior: none;
+  position: relative;
+}
+
+/* --- Background ------------------------------------------- */
+/*
+  #bg background-color is set by JS (page colour).
+  background-image layers sit on top and never change —
+  they add the stadium-light bloom and depth gradient.
+*/
+#bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background-color: #0a2e14; /* JS overwrites this */
+  /* Layer 1 (top): soft radial bloom from above — like stadium floodlights
+     Layer 2 (bottom): linear depth fade to near-black                    */
+  background-image:
+    radial-gradient(
+      ellipse 160% 55% at 50% -8%,
+      rgba(255, 255, 255, 0.11) 0%,
+      transparent 60%
+    ),
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.03) 0%,
+      rgba(0, 0, 0, 0)         45%,
+      rgba(0, 0, 0, 0.5)       100%
+    );
+  /* Smooth colour transitions driven by JS rAF */
+  transition: background-color 0s; /* JS handles this via rAF, not CSS */
+}
+
+/* Edge vignette — darkens corners without touching the JS colour */
+#bg::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse 100% 100% at 50% 50%,
+    transparent 35%,
+    rgba(0, 0, 0, 0.4) 100%
+  );
+  pointer-events: none;
+}
+
+/* --- Header ----------------------------------------------- */
+#header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding-left: 22px;
+  padding-right: 22px;
+  padding-top: calc(env(safe-area-inset-top, 16px) + 20px);
+  padding-bottom: 0;
+  pointer-events: none;
+}
+
+/* App title — large, heavy, tracking tight like Apple Sports */
+#app-title {
+  font-size: clamp(38px, 10.5vw, 50px);
+  font-weight: 800;
+  letter-spacing: -1.5px;
+  line-height: 1;
+  color: #ffffff;
+  /* Subtle glow lifts the text off the dark background */
+  text-shadow:
+    0 1px 0  rgba(255, 255, 255, 0.15),
+    0 2px 16px rgba(0, 0, 0, 0.25);
+  white-space: nowrap;
+}
+
+/* --- Pill -------------------------------------------------- */
+/*
+  Floating glass pill — top right.
+  Stretches/shrinks with a springy width animation when
+  the label changes (handled in JS).
+*/
+#pill {
+  pointer-events: all;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* Glass fill — backdrop blur lets the background colour bleed through */
+  background: rgba(255, 255, 255, 0.18);
+  backdrop-filter: blur(24px) saturate(220%);
+  -webkit-backdrop-filter: blur(24px) saturate(220%);
+  /* Crisp border with a slight inner highlight */
+  border: 1px solid rgba(255, 255, 255, 0.26);
+  border-radius: 999px;
+  padding: 11px 24px;
+  /* Width animates with a spring when label changes */
+  transition: width 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+  width: max-content;
+  overflow: hidden;
+  box-shadow:
+    inset 0 1px 0   rgba(255, 255, 255, 0.42),
+    inset 0 -1px 0  rgba(0, 0, 0, 0.10),
+    0 6px 28px       rgba(0, 0, 0, 0.32),
+    0 1px 4px        rgba(0, 0, 0, 0.18);
+  /* Align baseline with the title */
+  margin-top: 8px;
+  flex-shrink: 0;
+}
+
+#pill-label {
+  font-size: 15px;
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: 0.1px;
+  white-space: nowrap;
+  transition: opacity 0.15s ease;
+}
+
+#pill-label.fading {
+  opacity: 0;
+}
+
+/* --- Carousel Viewport ------------------------------------ */
+#carousel-viewport {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  overflow: hidden;
+  touch-action: pan-y;
+}
+
+/* --- Strip ------------------------------------------------ */
+#strip {
+  display: flex;
+  flex-direction: row;
+  height: 100%;
+  will-change: transform;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/*
+  Snap easing — expo-out curve used in most Apple spring animations.
+  Settles quickly, no overshoot, feels physical.
+*/
+#strip.snapping {
+  transition: transform 0.38s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* --- Pages ------------------------------------------------ */
+.page {
+  flex: 0 0 100vw;
+  width: 100vw;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  /* Top: clears the fixed header comfortably */
+  padding-top:    calc(env(safe-area-inset-top, 16px) + 118px);
+  padding-left:   18px;
+  padding-right:  18px;
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 40px);
+  position: relative;
+}
+
+/* --- Card ------------------------------------------------- */
+/*
+  Dark glass card — the main content surface.
+  Deep blur + layered shadows create the Apple Sports tile depth.
+*/
+.card {
+  flex: 1;
+  background: rgba(0, 0, 0, 0.30);
+  backdrop-filter: blur(32px) saturate(180%);
+  -webkit-backdrop-filter: blur(32px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  box-shadow:
+    /* Inner top highlight — simulates glass thickness */
+    inset 0 1px 0   rgba(255, 255, 255, 0.08),
+    /* Inner bottom shadow — grounding the card */
+    inset 0 -1px 0  rgba(0, 0, 0, 0.22),
+    /* Main depth shadow */
+    0 20px 60px     rgba(0, 0, 0, 0.45),
+    0  6px 16px     rgba(0, 0, 0, 0.28);
+}
+
+/* Soft horizontal shine line at the very top of the card */
+.card::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 28px;
+  right: 28px;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.20) 25%,
+    rgba(255, 255, 255, 0.20) 75%,
+    transparent
+  );
+  border-radius: 999px;
+}
+
+/* Card section label — subtle all-caps above content */
+.card-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.35);
+  margin-bottom: 10px;
+}
+
+/* Placeholder area — swapped out when tool content is added */
+.card-placeholder {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-placeholder p {
+  font-size: 15px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.18);
+  letter-spacing: 0.2px;
+}
+
+/* --- Page Indicator Dots ---------------------------------- */
+#dots {
+  position: fixed;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 22px);
+  left: 0;
+  right: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.28);
+  transition:
+    width      0.38s cubic-bezier(0.34, 1.56, 0.64, 1),
+    background 0.28s ease;
+}
+
+.dot.active {
+  width: 22px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.88);
+}
+
+
+/* ================================================================
+   BUDGET TOOL
+   ================================================================ */
+
+/* ── Content area ───────────────────────────────────────────── */
+.card--budget .card-title { display: none; }
+
+#card-content-budget {
+  flex: 1;
+  min-height: 0;
+  overflow-y: scroll;     /* always-scrollable so drag works even when content fits */
+  overflow-x: hidden;     /* never allow horizontal scroll */
+  -webkit-overflow-scrolling: touch;
+  display: block;
+  padding: 0 2px 16px;
+  /* Hide all scrollbars — scroll is driven by touch/pointer drag */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+#card-content-budget::-webkit-scrollbar { display: none; }
+
+/* Prevent any child from causing horizontal overflow */
+.b-root { min-width: 0; max-width: 100%; }
+.b-root * { min-width: 0; }
+
+
+/* ── Root grid — mobile first ───────────────────────────────── */
+/*
+  On mobile:  single column, DOM order
+  ≥ 680px:   two columns, named areas
+  ≥ 960px:   calendar pinned to left column, controls stack on right
+*/
+.b-root {
+  display: grid;
+  gap: 10px;
+  padding-bottom: 4px;
+}
+
+@media (min-width: 680px) {
+  .b-root {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "setup    setup"
+      "stats    stats"
+      "income   income"
+      "entry    list"
+      "calendar calendar"
+      "summary  summary"
+      "cats     cats";
+  }
+  .b-area-setup    { grid-area: setup;    }
+  .b-area-stats    { grid-area: stats;    }
+  .b-area-income   { grid-area: income;   }
+  .b-area-entry    { grid-area: entry;    }
+  .b-area-list     { grid-area: list;     }
+  .b-area-calendar { grid-area: calendar; }
+  .b-area-summary  { grid-area: summary;  }
+  .b-area-cats     { grid-area: cats;     }
+}
+
+@media (min-width: 960px) {
+  .b-root {
+    grid-template-columns: 1fr 300px;
+    grid-template-areas:
+      "calendar setup"
+      "calendar stats"
+      "calendar income"
+      "calendar entry"
+      "calendar list"
+      "summary  summary"
+      "cats     cats";
+  }
+  /* Calendar column: self-start so it doesn't stretch to match the right column */
+  .b-area-calendar { align-self: start; }
+}
+
+
+/* ── Inner glass module ─────────────────────────────────────── */
+.b-module {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+  padding: 16px;
+}
+
+/* Section label — small all-caps separator */
+.b-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.25);
+  margin-bottom: 12px;
+}
+
+/* Utility */
+.b-hidden { display: none !important; }
+
+
+/* ── Setup bar ──────────────────────────────────────────────── */
+.b-setup-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.b-setup-text {
+  font-size: 14px;
+  font-weight: 400;
+  color: rgba(255,255,255,0.52);
+  line-height: 1.5;
+}
+.b-setup-text strong  { font-weight: 600; color: #fff; }
+.b-setup-extra        { font-size: 12px; font-weight: 500; color: rgba(52,199,89,0.75); }
+
+.b-btn-ghost {
+  background: rgba(255,255,255,0.10);
+  border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 8px;
+  color: #fff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 14px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease;
+}
+.b-btn-ghost:hover  { background: rgba(255,255,255,0.16); }
+.b-btn-ghost:active { background: rgba(255,255,255,0.22); }
+
+.b-setup-panel { margin-top: 14px; display: grid; gap: 10px; }
+
+.b-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.b-field   { display: flex; flex-direction: column; gap: 5px; }
+
+.b-field-lbl {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.32);
+}
+
+.b-input {
+  background: rgba(0,0,0,0.22);
+  border: 1px solid rgba(255,255,255,0.11);
+  border-radius: 10px;
+  color: #fff;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  padding: 10px 12px;
+  width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+.b-input::placeholder { color: rgba(255,255,255,0.2); }
+.b-input:focus        { border-color: rgba(255,255,255,0.28); }
+
+select.b-input {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(255,255,255,0.32)'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 11px center;
+  padding-right: 30px;
+  cursor: pointer;
+}
+option { background: #0f2418; color: #fff; }
+
+.b-btn-primary {
+  background: rgba(255,255,255,0.9);
+  border: none;
+  border-radius: 10px;
+  color: #0a2e14;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 11px 20px;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+.b-btn-primary:hover  { opacity: 0.86; }
+.b-btn-primary:active { opacity: 0.76; }
+
+.b-setup-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+
+/* ── Stat pills ─────────────────────────────────────────────── */
+.b-stats-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.b-stat {
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  padding: 13px 14px 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.b-stat--pos { background: rgba(52,199,89,0.11); border-color: rgba(52,199,89,0.2); }
+.b-stat--neg { background: rgba(255,59,48,0.11);  border-color: rgba(255,59,48,0.2); }
+
+.b-stat-val {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  line-height: 1;
+  color: #fff;
+}
+.b-stat--pos .b-stat-val { color: #34C759; }
+.b-stat--neg .b-stat-val { color: #FF4F40; }
+
+.b-stat-lbl {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.32);
+}
+.b-stat--pos .b-stat-lbl { color: rgba(52,199,89,0.5); }
+.b-stat--neg .b-stat-lbl { color: rgba(255,79,64,0.5); }
+
+
+/* ── Add Income module ──────────────────────────────────────── */
+.b-income-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.b-income-header .b-label { margin-bottom: 0; }
+
+.b-income-history {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  justify-content: flex-end;
+  flex: 1;
+  min-width: 0;
+}
+
+.b-income-tag {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(52,199,89,0.9);
+  background: rgba(52,199,89,0.10);
+  border: 1px solid rgba(52,199,89,0.18);
+  border-radius: 20px;
+  padding: 3px 9px;
+  white-space: nowrap;
+}
+
+.b-income-entry {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.b-income-entry .b-input { flex: 1; min-width: 0; }
+
+.b-btn-income {
+  background: rgba(52,199,89,0.18);
+  border: 1px solid rgba(52,199,89,0.28);
+  color: #34C759;
+  font-size: 13px;
+  font-weight: 700;
+  font-family: inherit;
+  letter-spacing: 0.2px;
+  padding: 0 18px;
+  height: 40px;
+  border-radius: 10px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+.b-btn-income:hover  { background: rgba(52,199,89,0.26); }
+.b-btn-income:active { opacity: 0.75; }
+
+.b-income-hint {
+  margin-top: 8px;
+  font-size: 11px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.22);
+  line-height: 1.4;
+}
+
+
+/* ── Spend entry ────────────────────────────────────────────── */
+.b-entry-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.b-entry-note { margin-bottom: 8px; }
+
+.b-btn-add {
+  width: 100%;
+  background: rgba(255,255,255,0.9);
+  border: none;
+  border-radius: 10px;
+  color: #0a2e14;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  padding: 12px;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+.b-btn-add:hover  { opacity: 0.85; }
+.b-btn-add:active { opacity: 0.75; }
+
+
+/* ── Today's transaction list ───────────────────────────────── */
+.b-txn-list { display: flex; flex-direction: column; }
+
+.b-txn-empty {
+  text-align: center;
+  padding: 22px 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.17);
+}
+
+.b-txn-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.b-txn-row:last-child { border-bottom: none; }
+
+.b-txn-dot  { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+.b-txn-info { flex: 1; min-width: 0; }
+
+.b-txn-cat  { font-size: 14px; font-weight: 600; color: #fff; line-height: 1.2; }
+.b-txn-note {
+  font-size: 11px;
+  color: rgba(255,255,255,0.33);
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.b-txn-amt  { font-size: 15px; font-weight: 700; color: #fff; flex-shrink: 0; letter-spacing: -0.3px; }
+
+.b-txn-actions { display: flex; gap: 2px; flex-shrink: 0; }
+
+.b-txn-btn {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.26);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 5px 7px;
+  border-radius: 6px;
+  font-family: inherit;
+  line-height: 1;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.b-txn-btn:hover      { color: rgba(255,255,255,0.8); background: rgba(255,255,255,0.09); }
+.b-txn-btn--del:hover { color: #FF4F40; background: rgba(255,59,48,0.1); }
+
+/* Edit row */
+.b-txn-row--editing         { align-items: flex-start; flex-wrap: nowrap; }
+.b-txn-edit-fields          { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; padding: 4px 0; }
+.b-txn-edit-top             { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.b-txn-edit-fields .b-input { padding: 7px 10px; font-size: 14px; }
+.b-txn-actions--edit        { flex-direction: column; gap: 4px; }
+.b-txn-save                 { color: rgba(52,199,89,0.8); }
+.b-txn-save:hover           { color: #34C759; background: rgba(52,199,89,0.1); }
+
+/* Footer total */
+.b-txn-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 2px 2px;
+  margin-top: 4px;
+  border-top: 1px solid rgba(255,255,255,0.08);
+}
+.b-txn-footer-lbl { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: rgba(255,255,255,0.28); }
+.b-txn-footer-val { font-size: 16px; font-weight: 700; letter-spacing: -0.3px; color: #fff; }
+
+/* New row entrance */
+@keyframes b-slide-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.b-txn-row--new { animation: b-slide-in 0.22s ease forwards; }
+
+
+/* ── Calendar ───────────────────────────────────────────────── */
+/*
+  Layout:
+    Title row = label left + legend right
+    Day-of-week header row
+    Cell grid (7 columns, aspect-ratio 1 cells)
+
+  Cell states:
+    --today         white ring, on track
+    --today-over    red ring, today already over budget
+    --under         green tint  (past, ≤ budget)
+    --over          red tint    (past, > budget)
+    --future        very dim
+    --empty         transparent (offset padding)
+*/
+
+.b-cal-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.b-cal-title-row .b-label { margin-bottom: 0; }
+
+/* Legend pills */
+.b-cal-legend {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.b-cal-leg {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 20px;
+}
+.b-cal-leg--under { background: rgba(52,199,89,0.14);  color: rgba(52,199,89,0.8); }
+.b-cal-leg--over  { background: rgba(255,59,48,0.14);  color: rgba(255,79,64,0.8); }
+.b-cal-leg--today { background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.7); }
+
+/* Pre-setup label annotation */
+.b-cal-unset {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: rgba(255,255,255,0.18);
+  text-transform: none;
+}
+
+/* Weekday header */
+.b-cal-header {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+  margin-bottom: 3px;
+}
+.b-cal-wday {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.2);
+  text-align: center;
+  padding: 2px 0 6px;
+}
+
+/* Cell grid */
+.b-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+
+.b-cal-cell {
+  aspect-ratio: 1;
+  min-height: 34px;
+  border-radius: 9px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  background: rgba(255,255,255,0.04);
+  position: relative;
+}
+
+.b-cal-cell--empty            { background: transparent; border-radius: 0; }
+.b-cal-cell--future           { background: rgba(255,255,255,0.025); }
+.b-cal-cell--under            { background: rgba(52,199,89,0.13); }
+.b-cal-cell--over             { background: rgba(255,59,48,0.13); }
+/* Pre-setup placeholder — same structure, but muted */
+.b-cal-cell--placeholder      { background: rgba(255,255,255,0.03); }
+.b-cal-cell--placeholder-past { background: rgba(255,255,255,0.015); }
+.b-cal-cell--placeholder      .b-cal-dn { color: rgba(255,255,255,0.18); }
+.b-cal-cell--placeholder-past .b-cal-dn { color: rgba(255,255,255,0.1);  }
+
+.b-cal-cell--today {
+  background: rgba(255,255,255,0.11);
+  box-shadow: inset 0 0 0 1.5px rgba(255,255,255,0.38);
+}
+/* Today but already over budget — red ring instead */
+.b-cal-cell--today-over {
+  background: rgba(255,59,48,0.13);
+  box-shadow: inset 0 0 0 1.5px rgba(255,79,64,0.5);
+}
+
+/* Day number */
+.b-cal-dn {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  color: rgba(255,255,255,0.62);
+}
+.b-cal-cell--today      .b-cal-dn { color: #fff; font-weight: 700; }
+.b-cal-cell--today-over .b-cal-dn { color: rgba(255,255,255,0.9); font-weight: 700; }
+.b-cal-cell--future     .b-cal-dn { color: rgba(255,255,255,0.2); }
+.b-cal-cell--under      .b-cal-dn { color: rgba(255,255,255,0.7); }
+.b-cal-cell--over       .b-cal-dn { color: rgba(255,255,255,0.7); }
+
+/* Spent amount micro-label */
+.b-cal-ds {
+  font-size: 7px;
+  font-weight: 700;
+  line-height: 1;
+  color: rgba(255,255,255,0.28);
+  letter-spacing: 0.1px;
+}
+.b-cal-cell--under      .b-cal-ds { color: rgba(52,199,89,0.65); }
+.b-cal-cell--over       .b-cal-ds { color: rgba(255,79,64,0.72); }
+.b-cal-cell--today      .b-cal-ds { color: rgba(255,255,255,0.48); }
+.b-cal-cell--today-over .b-cal-ds { color: rgba(255,79,64,0.72); }
+
+
+/* ── Period summary ─────────────────────────────────────────── */
+/*
+  Six tiles:
+    Total Income · Total Spent · Remaining · Extra Added (conditional)
+    Days Under (green) · Days Over (red) · On Track (blue)
+*/
+.b-sum-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+@media (min-width: 560px) {
+  .b-sum-grid { grid-template-columns: repeat(6, 1fr); }
+}
+
+.b-sum-tile {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 13px;
+  padding: 13px 10px 11px;
+}
+
+.b-sum-val {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  color: #fff;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.b-sum-lbl {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: rgba(255,255,255,0.28);
+}
+
+/* Coloured tile variants */
+.b-sum-tile--under { border-color: rgba(52,199,89,0.2); }
+.b-sum-val--under  { color: #34C759; }
+
+.b-sum-tile--over  { border-color: rgba(255,59,48,0.2); }
+.b-sum-val--over   { color: #FF4F40; }
+
+.b-sum-tile--track { border-color: rgba(10,132,255,0.2); }
+.b-sum-val--track  { color: #0A84FF; }
+
+.b-sum-tile--income { border-color: rgba(52,199,89,0.2); }
+.b-sum-val--income  { color: #34C759; }
+
+.b-sum-val--neg { color: #FF4F40; }
+
+
+/* ── Spending by category ───────────────────────────────────── */
+.b-cats-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+}
+@media (min-width: 460px) {
+  .b-cats-layout { grid-template-columns: 1fr auto; align-items: center; }
+}
+
+.b-cat-list { display: flex; flex-direction: column; gap: 10px; }
+
+.b-cat-row  {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.b-cat-dot  { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+
+.b-cat-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.58);
+  width: 68px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.b-cat-track {
+  flex: 1;
+  height: 3px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 2px;
+  overflow: hidden;
+  min-width: 0;
+}
+.b-cat-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.55s cubic-bezier(0.22,1,0.36,1);
+}
+
+.b-cat-pct {
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.3);
+  width: 30px;
+  text-align: right;
+  flex-shrink: 0;
+}
+.b-cat-amt {
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.8);
+  min-width: 52px;
+  text-align: right;
+  flex-shrink: 0;
+  letter-spacing: -0.2px;
+}
+
+/* Pie donut */
+.b-pie-wrap { display: flex; align-items: center; justify-content: center; padding: 4px 0; }
