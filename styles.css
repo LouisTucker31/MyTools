@@ -20,7 +20,7 @@ html {
   height: 100%;
   height: 100svh;
   height: 100dvh;
-  background-color: #0a2e14;
+  background-color: #000;
 }
 
 body {
@@ -33,12 +33,26 @@ body {
   color: #ffffff;
   overscroll-behavior: none;
   position: relative;
+  --vv-offset: 0px;
+}
+
+/* Compensate for iOS keyboard pushing fixed elements up.
+   visualViewport.offsetTop is set as --vv-offset by app.js.
+   #bg is excluded — it stays full-screen at all times. */
+#header,
+#carousel-viewport,
+#dots {
+  transform: translateY(var(--vv-offset));
+  transition: transform 0.22s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 /* --- Background ------------------------------------------- */
 #bg {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: -100px; /* overextend to prevent any gap at the bottom edge */
   z-index: 0;
   background-color: #0a2e14;
   background-image:
@@ -631,6 +645,7 @@ option { background: #0f2418; color: #fff; }
 
 
 /* ── Spend entry ────────────────────────────────────────────── */
+.b-area-entry .b-setup-text { color: #fff; font-weight: 600; }
 .b-entry-fields {
   display: grid;
   grid-template-columns: 1fr;
