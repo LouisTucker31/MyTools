@@ -121,7 +121,10 @@ function lerpRgb(a, b, t) {
 
 /** Apply an [r,g,b] array to the #bg element's background-color */
 function applyBgColour(rgb) {
-  bg.style.backgroundColor = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+  const col = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+  bg.style.backgroundColor = col;
+  document.body.style.backgroundColor = col;
+  document.documentElement.style.backgroundColor = col;
 }
 
 /* ── 6. BACKGROUND INTERPOLATION ───────────────────────────
@@ -258,8 +261,9 @@ function snapToPage(index, fromVelocity) {
   setTranslate(targetX);
   currentTranslateX = targetX;
 
-  // Keep body background in sync so no gap shows around #app on iOS
-  document.body.style.setProperty("--page-bg", pages[clampedIndex].bg);
+  // Keep body/html background in sync so no gap shows around #app on iOS
+  document.body.style.backgroundColor = pages[clampedIndex].bg;
+  document.documentElement.style.backgroundColor = pages[clampedIndex].bg;
 
   // Update pill and dots
   updatePill(pages[clampedIndex].title);
@@ -450,7 +454,8 @@ function onPointerUp(e) {
 function init() {
   // Set initial background colour
   applyBgColour(hexToRgb(pages[0].bg));
-  document.body.style.setProperty("--page-bg", pages[0].bg);
+  document.body.style.backgroundColor = pages[0].bg;
+  document.documentElement.style.backgroundColor = pages[0].bg;
   // Set initial pill label
   pillLabel.textContent = pages[0].title;
   // Set strip width in px (vw units don't work for translateX math)
