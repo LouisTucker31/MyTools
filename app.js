@@ -258,6 +258,9 @@ function snapToPage(index, fromVelocity) {
   setTranslate(targetX);
   currentTranslateX = targetX;
 
+  // Keep body background in sync so no gap shows around #app on iOS
+  document.body.style.setProperty("--page-bg", pages[clampedIndex].bg);
+
   // Update pill and dots
   updatePill(pages[clampedIndex].title);
   updateDots(clampedIndex);
@@ -447,6 +450,7 @@ function onPointerUp(e) {
 function init() {
   // Set initial background colour
   applyBgColour(hexToRgb(pages[0].bg));
+  document.body.style.setProperty("--page-bg", pages[0].bg);
   // Set initial pill label
   pillLabel.textContent = pages[0].title;
   // Set strip width in px (vw units don't work for translateX math)
