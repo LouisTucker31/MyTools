@@ -116,7 +116,7 @@
   }
 
   const fmt    = n => '£'               + Math.abs(n).toFixed(2);
-  const fmtSgn = n => (n >= 0 ? '+£' : '−£') + Math.abs(n).toFixed(2);
+  const fmtSgn = n => (n > 0 ? '+£' : n < 0 ? '−£' : '£') + Math.abs(n).toFixed(2);
   const fmtBal = n => (n <  0 ? '−£' : '£')  + Math.abs(n).toFixed(2);
 
   function uuid() {
@@ -230,8 +230,10 @@
     computed.totalRemaining = computed.totalIncome - computed.totalSpent;
     computed.daysUnder      = days.filter(d => d.status === 'past-under').length;
     computed.daysOver       = days.filter(d => d.status === 'past-over').length;
-    const todayOnTrack      = (computed.today && computed.today.carryOut >= 0) ? 1 : 0;
-    computed.daysOnTrack    = computed.daysUnder + todayOnTrack;
+    const todayOver         = (computed.today && computed.today.carryOut < 0) ? 1 : 0;
+    const todayUnder        = (computed.today && computed.today.carryOut >= 0) ? 1 : 0;
+    computed.daysOver      += todayOver;
+    computed.daysOnTrack    = computed.daysUnder + todayUnder;
 
     computed.categoryTotals = {};
     for (const t of state.transactions) {
@@ -362,6 +364,9 @@
     document.getElementById('b-setup-panel')?.classList.add('b-hidden');
     const toggle = document.getElementById('b-setup-toggle');
     if (toggle) toggle.textContent = 'Edit';
+    document.getElementById('b-income-panel')?.classList.add('b-hidden');
+    const incToggle = document.getElementById('b-income-toggle');
+    if (incToggle) incToggle.textContent = '+ Add Income';
   }
 
 
@@ -407,25 +412,23 @@
         <button class="b-btn-primary" id="b-save-setup">Save Settings</button>
         <button class="b-btn-ghost"   id="b-cancel-setup">Cancel</button>
       </div>
+      <div class="b-income-section">
+        <button class="b-btn-ghost b-income-toggle" id="b-income-toggle">+ Add Income</button>
+        <div class="b-income-panel b-hidden" id="b-income-panel">
+          <div class="b-income-history" id="b-income-history"></div>
+          <div class="b-income-entry">
+            <input type="number" class="b-input" id="b-extra-amt"
+                   min="0" step="0.01" placeholder="Extra amount (£)">
+            <button class="b-btn-income" id="b-add-income">Add</button>
+          </div>
+          <p class="b-income-hint" id="b-income-hint"></p>
+        </div>
+      </div>
     </div>
   </div>
 
   <!-- B: Stat pills -->
   <div class="b-stats-row b-area-stats" id="b-stats-row"></div>
-
-  <!-- C: Add Income -->
-  <div class="b-module b-area-income">
-    <div class="b-income-header">
-      <div class="b-label">Add Income</div>
-      <div class="b-income-history" id="b-income-history"></div>
-    </div>
-    <div class="b-income-entry">
-      <input type="number" class="b-input" id="b-extra-amt"
-             min="0" step="0.01" placeholder="Extra amount (£)">
-      <button class="b-btn-income" id="b-add-income">Add</button>
-    </div>
-    <p class="b-income-hint" id="b-income-hint"></p>
-  </div>
 
   <!-- D: Spend entry -->
   <div class="b-module b-area-entry">
@@ -610,6 +613,8 @@
 
     if (!txns.length) {
       el.innerHTML = '<div class="b-txn-empty">No spending logged today</div>';
+      const existingFooter = document.getElementById('b-txn-footer');
+      if (existingFooter) existingFooter.innerHTML = '';
       return;
     }
 
@@ -624,23 +629,28 @@
   <span class="b-txn-footer-val">${fmt(total)}</span>
 </div>`;
 
-    el.innerHTML = rows + footer;
+    el.innerHTML = rows;
+
+    let footerEl = document.getElementById('b-txn-footer');
+    if (!footerEl) {
+      footerEl = document.createElement('div');
+      footerEl.id = 'b-txn-footer';
+      el.closest('.b-area-list')?.appendChild(footerEl);
+    }
+    footerEl.innerHTML = footer;
   }
 
   function buildTxnRow(t) {
     const isNew = t.id === lastAddedId;
     return `
-<div class="b-txn-row${isNew ? ' b-txn-row--new' : ''}" data-id="${t.id}">
+<div class="b-txn-row${isNew ? ' b-txn-row--new' : ''}" data-id="${t.id}" role="button">
   <div class="b-txn-dot" style="background:${catColor(t.category)}"></div>
   <div class="b-txn-info">
     <div class="b-txn-cat">${t.category}</div>
     ${t.note ? `<div class="b-txn-note">${t.note}</div>` : ''}
   </div>
   <span class="b-txn-amt">${fmt(t.amount)}</span>
-  <div class="b-txn-actions">
-    <button class="b-txn-btn b-txn-btn--edit" title="Edit">✎</button>
-    <button class="b-txn-btn b-txn-btn--del"  title="Delete">✕</button>
-  </div>
+  <span class="b-txn-chevron">›</span>
 </div>`;
   }
 
@@ -651,7 +661,6 @@
 
     return `
 <div class="b-txn-row b-txn-row--editing" data-id="${t.id}">
-  <div class="b-txn-dot" style="background:${catColor(t.category)}"></div>
   <div class="b-txn-edit-fields">
     <div class="b-txn-edit-top">
       <input  type="number" class="b-input b-edit-amt"
@@ -660,10 +669,11 @@
     </div>
     <input type="text" class="b-input b-edit-note"
            value="${t.note}" placeholder="Note (optional)">
-  </div>
-  <div class="b-txn-actions b-txn-actions--edit">
-    <button class="b-txn-btn b-txn-save"   title="Save">✓</button>
-    <button class="b-txn-btn b-txn-cancel" title="Cancel">✕</button>
+    <div class="b-txn-edit-actions">
+      <button class="b-txn-save">Save</button>
+      <button class="b-txn-cancel">Cancel</button>
+    </div>
+    <button class="b-txn-delete">Delete</button>
   </div>
 </div>`;
   }
@@ -1048,7 +1058,14 @@ ${extraLine}
         ?.classList.toggle('b-hidden', e.target.value !== 'paycheck')
     );
 
-    // Add Income
+    // Add Income toggle
+    document.getElementById('b-income-toggle')?.addEventListener('click', () => {
+      const panel = document.getElementById('b-income-panel');
+      const btn   = document.getElementById('b-income-toggle');
+      const hidden = panel?.classList.toggle('b-hidden');
+      if (btn) btn.textContent = hidden ? '+ Add Income' : '− Add Income';
+    });
+
     document.getElementById('b-add-income')?.addEventListener('click', () => {
       const el     = document.getElementById('b-extra-amt');
       const amount = parseFloat(el?.value);
@@ -1094,15 +1111,7 @@ ${extraLine}
       if (!row) return;
       const id = row.dataset.id;
 
-      if (e.target.closest('.b-txn-btn--edit')) {
-        editingId = id;
-        renderList();
-        row.querySelector?.('.b-edit-amt')?.focus();
-
-      } else if (e.target.closest('.b-txn-btn--del')) {
-        deleteTransaction(id);
-
-      } else if (e.target.closest('.b-txn-save')) {
+      if (e.target.closest('.b-txn-save')) {
         const amtEl  = row.querySelector('.b-edit-amt');
         const catEl  = row.querySelector('.b-edit-cat');
         const noteEl = row.querySelector('.b-edit-note');
@@ -1113,6 +1122,14 @@ ${extraLine}
       } else if (e.target.closest('.b-txn-cancel')) {
         editingId = null;
         renderList();
+
+      } else if (e.target.closest('.b-txn-delete')) {
+        deleteTransaction(id);
+
+      } else if (!row.classList.contains('b-txn-row--editing')) {
+        editingId = id;
+        renderList();
+        document.querySelector(`[data-id="${id}"] .b-edit-amt`)?.focus();
       }
     });
 
@@ -1188,7 +1205,7 @@ ${extraLine}
     }
 
     el.addEventListener('pointerdown', e => {
-      if (!e.isPrimary) return;
+      if (!e.isPrimary || e.pointerType === 'mouse') return;
       const tag = e.target.tagName;
       if (tag === 'INPUT' || tag === 'SELECT' || tag === 'BUTTON' || tag === 'TEXTAREA') return;
 

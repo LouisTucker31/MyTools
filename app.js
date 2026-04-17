@@ -223,7 +223,7 @@ function updatePill(newLabel) {
     pill.style.transition = "";
     pill.style.width = toWidth + "px";
 
-  }, 120); // 120ms = half of the label fade duration
+  }, 75); // 75ms = half of the 150ms label fade
 }
 
 
@@ -350,8 +350,8 @@ viewport.addEventListener("wheel", e => {
 }, { passive: false });
 
 function onPointerDown(e) {
-  // Ignore multi-touch
-  if (e.isPrimary === false) return;
+  // Ignore multi-touch and mouse (desktop/laptop — touch only)
+  if (e.isPrimary === false || e.pointerType === 'mouse') return;
 
   isDragging = true;
   isHorizontalSwipe = null;
