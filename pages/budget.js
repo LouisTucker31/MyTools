@@ -69,6 +69,7 @@
 
   let editingId   = null;
   let lastAddedId = null;
+  let listViewDate = todayISO(); // which day the transaction list is showing
 
   // Calendar view state — which month/year the calendar is showing
   const nowForView = new Date();
@@ -152,10 +153,11 @@
   /*
     checkRollover() runs on boot. If the saved period has ended
     (today > periodEnd), it:
-      1. Saves a snapshot of the completed period into periodHistory
-      2. Advances to the new period (same income by default)
-      3. Clears incomeAdjustments for the new period
-    For paycheck mode, payday is kept as-is (user must update it).
+      1. Archives the completed period into periodHistory (preserved for reference)
+      2. Advances period dates for the new period (no balance carried over)
+      3. Marks isSetup=false and stores pendingRollover so the user is
+         prompted to confirm their new disposable income before the period
+         becomes active. pendingRollover.prevIncome enables "use previous amount".
   */
 
   function checkRollover() {
@@ -164,7 +166,7 @@
     const { periodEnd, periodMode } = state.settings;
     if (!periodEnd || today <= periodEnd) return;
 
-    // Snapshot the completed period
+    // Archive the completed period — kept for history/reference, never mutated
     state.periodHistory.push({
       periodStart:       state.settings.periodStart,
       periodEnd:         state.settings.periodEnd,
@@ -172,11 +174,17 @@
       incomeAdjustments: state.incomeAdjustments.slice(),
     });
 
-    // Clear current-period income adjustments (they stay in the snapshot)
+    // Clear income adjustments — they belong to the archived period only
     state.incomeAdjustments = [];
 
-    // Advance period dates
+    // Advance period dates — new period starts fresh with no carry-over
     initPeriod();
+
+    // Require the user to confirm income for the new period
+    state.settings.isSetup         = false;
+    state.settings.pendingRollover = { prevIncome: state.settings.disposableIncome };
+    state.settings.disposableIncome = 0;
+
     saveState();
   }
 
@@ -378,6 +386,16 @@
     document.getElementById('b-entry-panel')?.classList.remove('b-hidden');
     const toggle = document.getElementById('b-entry-toggle');
     if (toggle) toggle.textContent = 'Cancel';
+
+    // Set date field: default today, min = period start, max = today
+    const dateEl = document.getElementById('b-txn-date');
+    if (dateEl) {
+      const today = todayISO();
+      dateEl.value = today;
+      dateEl.max   = today;
+      dateEl.min   = state.settings.periodStart || today;
+    }
+
     setTimeout(() => document.getElementById('b-amt')?.focus(), 50);
   }
 
@@ -394,6 +412,37 @@
     document.getElementById('b-income-panel')?.classList.add('b-hidden');
     const incToggle = document.getElementById('b-income-toggle');
     if (incToggle) incToggle.textContent = '+ Add Income';
+  }
+
+
+  function openRollover() {
+    const panel   = document.getElementById('b-rollover-panel');
+    const prevAmt = document.getElementById('b-rollover-prev-amt');
+    const input   = document.getElementById('b-rollover-income');
+    if (!panel) return;
+    const prev = state.settings.pendingRollover?.prevIncome || 0;
+    if (prevAmt) prevAmt.textContent = prev.toFixed(2);
+    if (input)   input.value = '';
+    panel.classList.remove('b-hidden');
+    setTimeout(() => input?.focus(), 50);
+  }
+
+  function closeRollover() {
+    document.getElementById('b-rollover-panel')?.classList.add('b-hidden');
+  }
+
+  function saveRollover(income) {
+    if (isNaN(income) || income <= 0) {
+      flashInput(document.getElementById('b-rollover-income'));
+      return;
+    }
+    state.settings.disposableIncome  = income;
+    state.settings.isSetup           = true;
+    state.settings.pendingRollover   = null;
+    saveState();
+    computeAll();
+    closeRollover();
+    render();
   }
 
 
@@ -416,6 +465,20 @@
       <span class="b-setup-text" id="b-setup-text">Loading…</span>
       <button class="b-btn-ghost" id="b-setup-toggle">Edit</button>
     </div>
+
+    <!-- Rollover prompt — shown instead of full setup when a period just ended -->
+    <div class="b-setup-panel b-hidden" id="b-rollover-panel">
+      <div class="b-field">
+        <span class="b-field-lbl">New Period Income</span>
+        <input type="number" class="b-input" id="b-rollover-income"
+               min="0" step="0.01" placeholder="£0.00">
+      </div>
+      <div class="b-setup-actions">
+        <button class="b-btn-primary" id="b-rollover-save">Start New Period</button>
+        <button class="b-btn-ghost"   id="b-rollover-prev">Use £<span id="b-rollover-prev-amt"></span></button>
+      </div>
+    </div>
+
     <div class="b-setup-panel b-hidden" id="b-setup-panel">
       <div class="b-two-col">
         <div class="b-field">
@@ -479,13 +542,20 @@
       <div class="b-entry-note">
         <input type="text" class="b-input" id="b-note" placeholder="Note (optional)">
       </div>
+      <div class="b-entry-note">
+        <input type="date" class="b-input" id="b-txn-date">
+      </div>
       <button class="b-btn-add" id="b-btn-add">Add Spending</button>
     </div>
   </div>
 
   <!-- E: Today's list -->
   <div class="b-module b-area-list">
-    <div class="b-label" id="b-today-label">Today</div>
+    <div class="b-list-header">
+      <button class="b-cal-nav-btn" id="b-list-prev">‹</button>
+      <span class="b-label" id="b-today-label">Today</span>
+      <button class="b-cal-nav-btn" id="b-list-next">›</button>
+    </div>
     <div class="b-txn-list" id="b-txn-list"></div>
   </div>
 
@@ -638,13 +708,45 @@
   // ── Transaction list ─────────────────────────────────────────
 
   function renderList() {
-    const el = document.getElementById('b-txn-list');
+    const el      = document.getElementById('b-txn-list');
+    const labelEl = document.getElementById('b-today-label');
+    const prevBtn = document.getElementById('b-list-prev');
+    const nextBtn = document.getElementById('b-list-next');
     if (!el) return;
 
-    const txns = computed.today ? computed.today.transactions : [];
+    // Ensure listViewDate stays within the current period
+    const periodDays = computed.days;
+    if (periodDays.length) {
+      const first = periodDays[0].date;
+      const last  = periodDays[periodDays.length - 1].date;
+      if (listViewDate < first) listViewDate = first;
+      if (listViewDate > last)  listViewDate = last;
+    }
+
+    const today   = todayISO();
+    const isToday = listViewDate === today;
+    const viewDay = periodDays.find(d => d.date === listViewDate);
+    const txns    = viewDay ? viewDay.transactions : [];
+
+    // Update label
+    if (labelEl) {
+      if (isToday) {
+        labelEl.textContent = `Today · ${shortDate(parseISO(listViewDate))}`;
+      } else {
+        const d = parseISO(listViewDate);
+        labelEl.textContent = `${DAY_SHORT[d.getDay()]} ${shortDate(d)}`;
+      }
+    }
+
+    // Show/hide nav arrows based on period bounds
+    if (prevBtn) prevBtn.style.visibility = listViewDate <= (periodDays[0]?.date || listViewDate) ? 'hidden' : '';
+    if (nextBtn) {
+      const lastPast = [...periodDays].reverse().find(d => d.date <= today);
+      nextBtn.style.visibility = listViewDate >= (lastPast?.date || listViewDate) ? 'hidden' : '';
+    }
 
     if (!txns.length) {
-      el.innerHTML = '<div class="b-txn-empty">No spending logged today</div>';
+      el.innerHTML = `<div class="b-txn-empty">${isToday ? 'No spending logged today' : 'No spending this day'}</div>`;
       const existingFooter = document.getElementById('b-txn-footer');
       if (existingFooter) existingFooter.innerHTML = '';
       return;
@@ -655,11 +757,7 @@
     ).join('');
 
     const total  = txns.reduce((s, t) => s + t.amount, 0);
-    const footer = `
-<div class="b-txn-footer">
-  <span class="b-txn-footer-lbl">Total today</span>
-  <span class="b-txn-footer-val">${fmt(total)}</span>
-</div>`;
+    const lbl    = isToday ? 'Total today' : 'Total this day';
 
     el.innerHTML = rows;
 
@@ -669,7 +767,11 @@
       footerEl.id = 'b-txn-footer';
       el.closest('.b-area-list')?.appendChild(footerEl);
     }
-    footerEl.innerHTML = footer;
+    footerEl.innerHTML = `
+<div class="b-txn-footer">
+  <span class="b-txn-footer-lbl">${lbl}</span>
+  <span class="b-txn-footer-val">${fmt(total)}</span>
+</div>`;
   }
 
   function buildTxnRow(t) {
@@ -687,9 +789,11 @@
   }
 
   function buildEditRow(t) {
-    const opts = CATEGORIES.map(c =>
+    const opts   = CATEGORIES.map(c =>
       `<option value="${c.name}" ${c.name === t.category ? 'selected' : ''}>${c.name}</option>`
     ).join('');
+    const today  = todayISO();
+    const pStart = state.settings.periodStart || today;
 
     return `
 <div class="b-txn-row b-txn-row--editing" data-id="${t.id}">
@@ -701,6 +805,8 @@
     </div>
     <input type="text" class="b-input b-edit-note"
            value="${t.note}" placeholder="Note (optional)">
+    <input type="date" class="b-input b-edit-date"
+           value="${t.date}" min="${pStart}" max="${today}">
     <div class="b-txn-edit-actions">
       <button class="b-txn-save">Save</button>
       <button class="b-txn-cancel">Cancel</button>
@@ -907,7 +1013,7 @@ ${extraLine}
 
     if (grandTotal === 0) {
       listEl.innerHTML =
-        '<div class="b-txn-empty" style="text-align:left;padding:4px 0 0">No spending this period yet</div>';
+        '<div class="b-txn-empty">No spending this period yet</div>';
       pieEl.innerHTML = buildEmptyPie();
       return;
     }
@@ -1009,33 +1115,46 @@ ${extraLine}
     closeSetup();
   }
 
-  function addTransaction(amount, category, note) {
-    if (!computed.today) {
+  function addTransaction(amount, category, note, date) {
+    const today  = todayISO();
+    const pStart = state.settings.periodStart || today;
+    const pEnd   = state.settings.periodEnd   || today;
+
+    // Clamp date to within the active period and no later than today
+    const txnDate = (date && date >= pStart && date <= pEnd && date <= today)
+      ? date : today;
+
+    if (!computed.days.find(d => d.date === txnDate)) {
       setAddButtonMessage('Outside period — update settings', 2200);
       return;
     }
 
-    const t = {
-      id: uuid(), date: todayISO(),
-      amount: parseFloat(amount), category, note: note || '',
-    };
+    const t = { id: uuid(), date: txnDate, amount: parseFloat(amount), category, note: note || '' };
     lastAddedId = t.id;
     state.transactions.push(t);
     saveState();
     computeAll();
+    // Navigate the list view to show the date the transaction was added to
+    listViewDate = txnDate;
     render();
     setTimeout(() => { lastAddedId = null; }, 600);
   }
 
-  function editTransaction(id, amount, category, note) {
+  function editTransaction(id, amount, category, note, date) {
     const t = state.transactions.find(t => t.id === id);
     if (!t) return;
+    const today  = todayISO();
+    const pStart = state.settings.periodStart || today;
+    const pEnd   = state.settings.periodEnd   || today;
     t.amount   = parseFloat(amount);
     t.category = category;
     t.note     = note || '';
+    // Only update date if valid within the active period and not future
+    if (date && date >= pStart && date <= pEnd && date <= today) t.date = date;
     editingId  = null;
     saveState();
     computeAll();
+    listViewDate = t.date;
     render();
   }
 
@@ -1084,6 +1203,20 @@ ${extraLine}
 
   function wireAll() {
 
+    // Transaction list day navigation
+    document.getElementById('b-list-prev')?.addEventListener('click', () => {
+      const idx = computed.days.findIndex(d => d.date === listViewDate);
+      if (idx > 0) { listViewDate = computed.days[idx - 1].date; renderList(); }
+    });
+    document.getElementById('b-list-next')?.addEventListener('click', () => {
+      const today = todayISO();
+      const idx   = computed.days.findIndex(d => d.date === listViewDate);
+      if (idx !== -1 && idx < computed.days.length - 1 && computed.days[idx + 1].date <= today) {
+        listViewDate = computed.days[idx + 1].date;
+        renderList();
+      }
+    });
+
     document.getElementById('b-setup-toggle')?.addEventListener('click', () => {
       const panel = document.getElementById('b-setup-panel');
       panel?.classList.contains('b-hidden') ? openSetup() : closeSetup();
@@ -1091,6 +1224,18 @@ ${extraLine}
 
     document.getElementById('b-cancel-setup')?.addEventListener('click', closeSetup);
     document.getElementById('b-save-setup')?.addEventListener('click', saveSettings);
+
+    // Rollover prompt
+    document.getElementById('b-rollover-save')?.addEventListener('click', () => {
+      const income = parseFloat(document.getElementById('b-rollover-income')?.value);
+      saveRollover(income);
+    });
+    document.getElementById('b-rollover-income')?.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { e.preventDefault(); document.getElementById('b-rollover-save')?.click(); }
+    });
+    document.getElementById('b-rollover-prev')?.addEventListener('click', () => {
+      saveRollover(state.settings.pendingRollover?.prevIncome || 0);
+    });
 
     document.getElementById('b-mode')?.addEventListener('change', e =>
       document.getElementById('b-enddate-wrap')
@@ -1124,9 +1269,10 @@ ${extraLine}
 
     // Spend entry
     function submitSpend() {
-      const amtEl  = document.getElementById('b-amt');
-      const catEl  = document.getElementById('b-cat');
-      const noteEl = document.getElementById('b-note');
+      const amtEl    = document.getElementById('b-amt');
+      const catEl    = document.getElementById('b-cat');
+      const noteEl   = document.getElementById('b-note');
+      const dateEl   = document.getElementById('b-txn-date');
 
       if (!state.settings.isSetup) { openSetup(); return; }
 
@@ -1134,16 +1280,16 @@ ${extraLine}
       if (isNaN(amount) || amount <= 0) { flashInput(amtEl); return; }
       if (!catEl?.value)                { flashInput(catEl); return; }
 
-      addTransaction(amount, catEl.value, noteEl?.value || '');
+      addTransaction(amount, catEl.value, noteEl?.value || '', dateEl?.value || '');
       amtEl.value  = '';
       catEl.value  = '';
-      noteEl.value = '';
+      if (noteEl) noteEl.value = '';
       closeEntry();
     }
 
     document.getElementById('b-btn-add')?.addEventListener('click', submitSpend);
 
-    ['b-amt', 'b-cat', 'b-note'].forEach(id =>
+    ['b-amt', 'b-cat', 'b-note', 'b-txn-date'].forEach(id =>
       document.getElementById(id)?.addEventListener('keydown', e => {
         if (e.key === 'Enter') { e.preventDefault(); submitSpend(); }
       })
@@ -1159,9 +1305,10 @@ ${extraLine}
         const amtEl  = row.querySelector('.b-edit-amt');
         const catEl  = row.querySelector('.b-edit-cat');
         const noteEl = row.querySelector('.b-edit-note');
+        const dateEl = row.querySelector('.b-edit-date');
         const amount = parseFloat(amtEl?.value);
         if (isNaN(amount) || amount <= 0) { flashInput(amtEl); return; }
-        editTransaction(id, amount, catEl?.value, noteEl?.value || '');
+        editTransaction(id, amount, catEl?.value, noteEl?.value || '', dateEl?.value || '');
 
       } else if (e.target.closest('.b-txn-cancel')) {
         editingId = null;
@@ -1328,6 +1475,10 @@ ${extraLine}
   render();
   wireAll();
 
-  if (!state.settings.isSetup) openSetup();
+  if (state.settings.pendingRollover) {
+    openRollover();
+  } else if (!state.settings.isSetup) {
+    openSetup();
+  }
 
 })();

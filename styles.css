@@ -438,6 +438,14 @@ body {
 
 .b-hidden { display: none !important; }
 
+.b-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.b-list-header .b-label { margin-bottom: 0; flex: 1; text-align: center; }
+
 
 /* ── Unified ghost button — used for ALL action buttons ─────── */
 /*
@@ -660,7 +668,7 @@ option { background: #0f2418; color: #fff; }
   display: grid;
   grid-template-columns: 1fr;
   gap: 12px;
-  margin-bottom: 12px;
+  margin-bottom: 0;
 }
 @media (min-width: 480px) {
   .b-entry-fields { grid-template-columns: 1fr 1fr; }
