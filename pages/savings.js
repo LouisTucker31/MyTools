@@ -283,7 +283,7 @@
       <div class="sv-progress-fill ${isInvest ? 'sv-progress-fill--invest' : ''}" style="width:${progress}%"></div>
     </div>` : ''}
     <div class="sv-row-meta">
-      ${p.monthly > 0 ? `<span class="sv-meta-item">£${parseFloat(p.monthly).toFixed(2)}/mo${p.day ? ` · ${ordinal(p.day)}` : ''}</span>` : ''}
+      ${p.monthly > 0 ? `<span class="sv-meta-item">${fmt(p.monthly)}/mo${p.day >= 1 ? ` · ${ordinal(p.day)}` : ''}</span>` : ''}
       ${p.rate > 0 ? `<span class="sv-meta-item">${parseFloat(p.rate).toFixed(2)}% p.a.</span>` : ''}
       ${projection ? `<span class="sv-meta-item sv-meta-goal">${projection}</span>` : ''}
     </div>
@@ -358,8 +358,7 @@
       const el = document.getElementById(id);
       if (el) el.value = '';
     });
-    const typeEl = document.getElementById('sv-type');
-    if (typeEl) typeEl.value = 'savings';
+    document.getElementById('sv-type').value = 'savings';
   }
 
   function savePot() {
@@ -413,6 +412,12 @@
 
     const p = state.pots.find(p => p.id === id);
     if (!p) return;
+    // If monthly payment or rate changed, reset lastUpdated to today so future
+    // applyMissedPayments uses the new values from now, not retroactively.
+    const todayStr = new Date().toISOString().slice(0, 10);
+    if (monthly !== p.monthly || rate !== p.rate || current !== p.current) {
+      p.lastUpdated = todayStr;
+    }
     Object.assign(p, { name, type, current, goal, monthly, day, rate });
     editingId = null;
     saveState();

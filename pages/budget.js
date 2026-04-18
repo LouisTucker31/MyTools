@@ -252,10 +252,10 @@
     computed.totalRemaining = computed.totalIncome - computed.totalSpent;
     computed.daysUnder      = days.filter(d => d.status === 'past-under').length;
     computed.daysOver       = days.filter(d => d.status === 'past-over').length;
-    const todayOver         = (computed.today && computed.today.carryOut < 0) ? 1 : 0;
-    const todayUnder        = (computed.today && computed.today.carryOut >= 0) ? 1 : 0;
-    computed.daysOver      += todayOver;
-    computed.daysOnTrack    = computed.daysUnder + todayUnder;
+    const todayOver      = (computed.today && computed.today.carryOut <  0) ? 1 : 0;
+    const todayUnder     = (computed.today && computed.today.carryOut >= 0) ? 1 : 0;
+    computed.daysOver   += todayOver;
+    computed.daysOnTrack = computed.daysUnder + todayUnder;
 
     computed.categoryTotals = {};
     for (const t of state.transactions) {

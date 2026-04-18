@@ -360,24 +360,11 @@ body {
   tile grid directly inside .page. The card element is still in the
   DOM (injected by app.js) but we strip all its visual chrome.
 */
-.card--budget {
-  background: none;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  border: none;
-  border-radius: 0;
-  padding: 0;
-  box-shadow: none;
-  overflow: hidden;
-  /* Must be bounded so #card-content-budget can scroll within it */
-  display: flex;
-  flex-direction: column;
-}
-.card--budget::before { display: none; }
-.card--budget .card-title { display: none; }
-
-/* Bills page — same transparent shell as budget */
-.card--bills {
+/* All pages strip card chrome — transparent shell, content scrolls inside */
+.card--budget,
+.card--bills,
+.card--savings,
+.card--debts {
   background: none;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
@@ -389,10 +376,20 @@ body {
   display: flex;
   flex-direction: column;
 }
-.card--bills::before { display: none; }
-.card--bills .card-title { display: none; }
+.card--budget::before,
+.card--bills::before,
+.card--savings::before,
+.card--debts::before { display: none; }
+.card--budget .card-title,
+.card--bills .card-title,
+.card--savings .card-title,
+.card--debts .card-title { display: none; }
 
-#card-content-bills {
+/* Scrollable content area inside each card */
+#card-content-budget,
+#card-content-bills,
+#card-content-savings,
+#card-content-debts {
   flex: 1;
   min-height: 0;
   overflow-y: scroll;
@@ -402,27 +399,13 @@ body {
   scrollbar-width: none;
   -ms-overflow-style: none;
 }
-#card-content-bills::-webkit-scrollbar { display: none; }
+#card-content-budget::-webkit-scrollbar,
+#card-content-bills::-webkit-scrollbar,
+#card-content-savings::-webkit-scrollbar,
+#card-content-debts::-webkit-scrollbar { display: none; }
 
 .bl-root     { min-width: 0; max-width: 100%; }
 .bl-root *   { min-width: 0; }
-
-.card--placeholder {
-  padding-bottom: max(56px, calc(env(safe-area-inset-bottom, 0px) + 56px));
-}
-
-/* Scrollable content area inside the (now invisible) card */
-#card-content-budget {
-  flex: 1;
-  min-height: 0;
-  overflow-y: scroll;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
-  display: block;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-#card-content-budget::-webkit-scrollbar { display: none; }
 
 /* Prevent children from causing horizontal overflow */
 .b-root     { min-width: 0; max-width: 100%; }
@@ -1228,32 +1211,6 @@ option { background: #0f2418; color: #fff; }
    SAVINGS PAGE — sv-* classes
    ============================================================ */
 
-.card--savings {
-  background: none;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  border: none;
-  border-radius: 0;
-  padding: 0;
-  box-shadow: none;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-.card--savings::before { display: none; }
-.card--savings .card-title { display: none; }
-
-#card-content-savings {
-  flex: 1;
-  min-height: 0;
-  overflow-y: scroll;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
-  display: block;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-#card-content-savings::-webkit-scrollbar { display: none; }
 
 .sv-root     { min-width: 0; max-width: 100%; display: grid; gap: 16px; padding-bottom: max(56px, calc(env(safe-area-inset-bottom, 0px) + 56px)); align-content: start; }
 .sv-root *   { min-width: 0; }
@@ -1391,32 +1348,6 @@ option { background: #0f2418; color: #fff; }
    DEBTS PAGE — dt-* classes
    ============================================================ */
 
-.card--debts {
-  background: none;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  border: none;
-  border-radius: 0;
-  padding: 0;
-  box-shadow: none;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-.card--debts::before { display: none; }
-.card--debts .card-title { display: none; }
-
-#card-content-debts {
-  flex: 1;
-  min-height: 0;
-  overflow-y: scroll;
-  overflow-x: hidden;
-  -webkit-overflow-scrolling: touch;
-  display: block;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
-}
-#card-content-debts::-webkit-scrollbar { display: none; }
 
 .dt-root     { min-width: 0; max-width: 100%; display: grid; gap: 16px; padding-bottom: max(56px, calc(env(safe-area-inset-bottom, 0px) + 56px)); align-content: start; }
 .dt-root *   { min-width: 0; }

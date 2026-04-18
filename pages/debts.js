@@ -271,7 +271,7 @@
       <div class="sv-progress-fill sv-progress-fill--debt" style="width:${progress}%"></div>
     </div>
     <div class="sv-row-meta">
-      ${d.monthly > 0 ? `<span class="sv-meta-item">£${parseFloat(d.monthly).toFixed(2)}/mo${d.day ? ` · ${ordinal(d.day)}` : ''}</span>` : ''}
+      ${d.monthly > 0 ? `<span class="sv-meta-item">${fmt(d.monthly)}/mo${d.day >= 1 ? ` · ${ordinal(d.day)}` : ''}</span>` : ''}
       <span class="sv-meta-item">${parseFloat(d.rate || 0).toFixed(2)}% p.a.</span>
       ${payoff ? `<span class="sv-meta-item sv-meta-goal">${payoff}</span>` : ''}
     </div>
@@ -398,6 +398,15 @@
 
     const d = state.debts.find(d => d.id === id);
     if (!d) return;
+    const todayStr = new Date().toISOString().slice(0, 10);
+    if (monthly !== d.monthly || rate !== d.rate || balance !== d.balance) {
+      d.lastUpdated = todayStr;
+    }
+    // If balance increased (user manually corrected upward), update originalBalance too
+    // so the progress bar doesn't show misleadingly high progress.
+    if (balance > (d.originalBalance || 0)) {
+      d.originalBalance = balance;
+    }
     Object.assign(d, { name, type, balance, rate, monthly, day });
     editingId = null;
     saveState();

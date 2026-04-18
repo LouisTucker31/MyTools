@@ -10,30 +10,10 @@
    To add a new page       → add a new object to this array
    ─────────────────────────────────────────────────────────── */
 const pages = [
-  {
-    id: "budget",
-    title: "Budget",           // ← pill label and card title
-    bg: "#0a2e14",             // ← rich deep green background
-    pillBg: "rgba(255,255,255,0.18)", // pill tint (future use)
-  },
-  {
-    id: "bills",
-    title: "Bills",
-    bg: "#0d1a3a",             // ← deep indigo/navy
-    pillBg: "rgba(255,255,255,0.18)",
-  },
-  {
-    id: "savings",
-    title: "Savings",
-    bg: "#1a0a2e",             // ← deep purple
-    pillBg: "rgba(255,255,255,0.18)",
-  },
-  {
-    id: "debts",
-    title: "Debts",
-    bg: "#2a0a0a",             // ← deep red
-    pillBg: "rgba(255,255,255,0.18)",
-  },
+  { id: "budget",  title: "Budget",  bg: "#0a2e14" },
+  { id: "bills",   title: "Bills",   bg: "#0d1a3a" },
+  { id: "savings", title: "Savings", bg: "#1a0a2e" },
+  { id: "debts",   title: "Debts",   bg: "#2a0a0a" },
 ];
 
 
