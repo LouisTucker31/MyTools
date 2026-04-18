@@ -44,12 +44,14 @@ body {
   overflow: hidden;
 }
 
-/* On touch devices (iOS standalone), overextend past the home indicator
-   to eliminate the background gap at the bottom. */
+/* On touch devices (iOS standalone), extend #app past the home indicator
+   so #bg covers the gap — no padding so scroll area stays the right size. */
 @media (hover: none) and (pointer: coarse) {
   #app {
     bottom: -100px;
-    padding-bottom: 100px;
+  }
+  #carousel-viewport {
+    bottom: 100px;
   }
 }
 
