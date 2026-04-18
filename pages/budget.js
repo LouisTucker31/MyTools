@@ -542,7 +542,7 @@
     if (!el) return;
 
     if (!state.settings.isSetup) {
-      el.textContent = 'Set up your budget to get started';
+      el.innerHTML = '<strong style="color:#fff;font-weight:700">Set up your budget</strong>';
       return;
     }
 
@@ -847,10 +847,12 @@
     }
 
     if (!state.settings.isSetup) {
-      el.innerHTML = '<div class="b-txn-empty" style="padding:8px 0;text-align:center;width:100%">Set up your budget to see summary</div>';
+      el.style.display = 'block';
+      el.innerHTML = '<div class="b-txn-empty">Set up your budget to see summary</div>';
       return;
     }
 
+    el.style.display = '';
     const remainCls = data.totalRemaining < 0 ? ' b-sum-val--neg' : '';
 
     const extraLine = data.extraIncomeTotal > 0
