@@ -319,6 +319,55 @@ body {
   background: rgba(255, 255, 255, 0.88);
 }
 
+/* --- Desktop nav arrows (hover+fine pointer only) --------- */
+#nav-prev,
+#nav-next {
+  display: none; /* hidden by default — shown only on desktop below */
+}
+
+@media (hover: hover) and (pointer: fine) {
+  /* Make dots clickable on desktop */
+  #dots { pointer-events: auto; cursor: pointer; }
+  .dot  { cursor: pointer; }
+
+  #nav-prev,
+  #nav-next {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    bottom: max(12px, calc(env(safe-area-inset-bottom, 0px) + 12px));
+    z-index: 200;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: rgba(255, 255, 255, 0.10);
+    color: rgba(255, 255, 255, 0.70);
+    font-size: 22px;
+    line-height: 1;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, opacity 0.15s;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    user-select: none;
+  }
+
+  #nav-prev { left: 24px; }
+  #nav-next { right: 24px; }
+
+  #nav-prev:hover,
+  #nav-next:hover {
+    background: rgba(255, 255, 255, 0.18);
+    color: #fff;
+  }
+
+  #nav-prev:active,
+  #nav-next:active {
+    background: rgba(255, 255, 255, 0.08);
+  }
+}
+
 
 /* ================================================================
    BUDGET TOOL
@@ -1046,5 +1095,133 @@ option { background: #0f2418; color: #fff; }
   flex-shrink: 0;
   letter-spacing: -0.2px;
 }
+
+
+/* ============================================================
+   BILLS PAGE — bl-* classes
+   ============================================================ */
+
+/* Root layout */
+.bl-root {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Bill list area */
+.bl-area-list { display: flex; flex-direction: column; }
+.bl-area-totals { }
+
+/* ── Bill rows ───────────────────────────────────────────── */
+.bl-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 4px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+.bl-row:last-child { border-bottom: none; }
+
+.bl-row--paid { opacity: 0.5; }
+
+.bl-row--editing {
+  background: rgba(255,255,255,0.04);
+  border-radius: 14px;
+  border-bottom: none;
+  padding: 14px 12px;
+  margin-bottom: 4px;
+}
+
+/* ── Tick button ─────────────────────────────────────────── */
+.bl-tick {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid rgba(79,195,247,0.4);
+  background: transparent;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #4FC3F7;
+  transition: background 0.15s, border-color 0.15s;
+}
+.bl-tick svg { width: 14px; height: 14px; }
+.bl-tick:active { opacity: 0.7; }
+
+.bl-tick--checked {
+  background: rgba(79,195,247,0.18);
+  border-color: #4FC3F7;
+}
+
+/* ── Bill info ───────────────────────────────────────────── */
+.bl-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.bl-name {
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.bl-name--paid { text-decoration: line-through; color: rgba(255,255,255,0.4); }
+
+.bl-day {
+  font-size: 12px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.38);
+  letter-spacing: 0.1px;
+}
+.bl-day--due {
+  color: #FF4F40;
+  font-weight: 600;
+}
+
+/* ── Amount ──────────────────────────────────────────────── */
+.bl-amt {
+  font-size: 16px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.85);
+  letter-spacing: -0.3px;
+  flex-shrink: 0;
+}
+.bl-amt--paid { color: rgba(255,255,255,0.3); }
+
+/* ── Edit chevron ────────────────────────────────────────── */
+.bl-edit-btn {
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,0.22);
+  font-size: 22px;
+  font-weight: 300;
+  line-height: 1;
+  padding: 4px 2px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+.bl-edit-btn:active { color: rgba(255,255,255,0.6); }
+
+/* ── Totals grid ─────────────────────────────────────────── */
+.bl-totals-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+/* Paid So Far: blue outline */
+.bl-totals-grid .b-stat:nth-child(2) { border-color: rgba(79,195,247,0.22); }
+.bl-totals-grid .b-stat:nth-child(2) .b-stat-val { color: #4FC3F7; }
+
+/* Still To Pay: red outline (only when > 0, handled inline) */
+.bl-totals-grid .b-stat:nth-child(3).b-stat--neg-outline { border-color: rgba(255,79,64,0.22); }
 
 .b-pie-wrap { display: flex; align-items: center; justify-content: center; padding: 4px 0; }

@@ -17,8 +17,8 @@ const pages = [
     pillBg: "rgba(255,255,255,0.18)", // pill tint (future use)
   },
   {
-    id: "placeholder2",
-    title: "Habits",
+    id: "bills",
+    title: "Bills",
     bg: "#0d1a3a",             // ← deep indigo/navy
     pillBg: "rgba(255,255,255,0.18)",
   },
@@ -238,6 +238,30 @@ function updateDots(index) {
     dot.classList.toggle("active", i === index);
   });
 }
+
+/* ── 8b. DESKTOP ARROW NAV ──────────────────────────────── */
+const prevBtn = document.createElement("button");
+prevBtn.id = "nav-prev";
+prevBtn.innerHTML = "‹";
+prevBtn.setAttribute("aria-label", "Previous page");
+
+const nextBtn = document.createElement("button");
+nextBtn.id = "nav-next";
+nextBtn.innerHTML = "›";
+nextBtn.setAttribute("aria-label", "Next page");
+
+document.getElementById("app").appendChild(prevBtn);
+document.getElementById("app").appendChild(nextBtn);
+
+prevBtn.addEventListener("click", () => snapToPage(currentIndex - 1));
+nextBtn.addEventListener("click", () => snapToPage(currentIndex + 1));
+
+// Also make dots clickable on desktop
+dotsWrap.addEventListener("click", e => {
+  const dot = e.target.closest(".dot");
+  if (!dot) return;
+  snapToPage(parseInt(dot.dataset.index, 10));
+});
 
 
 /* ── 9. SNAP TO PAGE ────────────────────────────────────── */
