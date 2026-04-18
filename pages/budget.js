@@ -1477,8 +1477,6 @@ ${extraLine}
 
   if (state.settings.pendingRollover) {
     openRollover();
-  } else if (!state.settings.isSetup) {
-    openSetup();
   }
 
 })();
