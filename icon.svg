@@ -1,25 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="#1a5c30"/>
-      <stop offset="100%" stop-color="#0a2e14"/>
+      <stop offset="0%" stop-color="#4CAF7D"/>
+      <stop offset="100%" stop-color="#1B7A45"/>
     </linearGradient>
-    <clipPath id="round">
-      <rect width="1024" height="1024" rx="230" ry="230"/>
-    </clipPath>
   </defs>
   <!-- Background -->
   <rect width="1024" height="1024" rx="230" ry="230" fill="url(#bg)"/>
-  <!-- Subtle radial highlight at top -->
-  <ellipse cx="512" cy="100" rx="480" ry="260" fill="rgba(255,255,255,0.07)"/>
-  <!-- £ symbol -->
-  <text
-    x="512" y="680"
-    font-family="-apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif"
-    font-size="580"
-    font-weight="700"
-    fill="white"
-    text-anchor="middle"
-    letter-spacing="-10"
-  >£</text>
+  <!-- Banknote icon: note body -->
+  <rect x="162" y="362" width="700" height="420" rx="48" ry="48" fill="none" stroke="white" stroke-width="52"/>
+  <!-- Centre oval (value circle) -->
+  <ellipse cx="512" cy="572" rx="108" ry="108" fill="none" stroke="white" stroke-width="48"/>
+  <!-- Left oval decoration -->
+  <ellipse cx="282" cy="572" rx="52" ry="52" fill="none" stroke="white" stroke-width="40"/>
+  <!-- Right oval decoration -->
+  <ellipse cx="742" cy="572" rx="52" ry="52" fill="none" stroke="white" stroke-width="40"/>
+  <!-- Horizontal lines on note -->
+  <line x1="162" y1="470" x2="862" y2="470" stroke="white" stroke-width="36" opacity="0.25"/>
+  <line x1="162" y1="674" x2="862" y2="674" stroke="white" stroke-width="36" opacity="0.25"/>
 </svg>
