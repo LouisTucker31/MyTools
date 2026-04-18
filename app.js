@@ -106,13 +106,15 @@ function lerpRgb(a, b, t) {
 }
 
 /** Apply an [r,g,b] array to the #bg element's background-color */
+const _themeMeta = document.querySelector('meta[name="theme-color"]');
+
 function applyBgColour(rgb) {
   const col = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
-  // Darkened version matches the rgba(0,0,0,0.25) gradient overlay at the bottom
   const dark = `rgb(${Math.round(rgb[0]*0.75)},${Math.round(rgb[1]*0.75)},${Math.round(rgb[2]*0.75)})`;
   bg.style.backgroundColor = col;
   document.body.style.backgroundColor = dark;
   document.documentElement.style.backgroundColor = dark;
+  if (_themeMeta) _themeMeta.content = dark;
 }
 
 /* ── 6. BACKGROUND INTERPOLATION ───────────────────────────
@@ -272,10 +274,6 @@ function snapToPage(index, fromVelocity) {
   strip.classList.add("snapping");
   setTranslate(targetX);
   currentTranslateX = targetX;
-
-  // Keep theme-color in sync so iOS status bar matches
-  const themeMeta = document.querySelector('meta[name="theme-color"]');
-  if (themeMeta) themeMeta.content = pages[clampedIndex].bg;
 
   // Update pill and dots
   updatePill(pages[clampedIndex].title);
@@ -464,10 +462,8 @@ function onPointerUp(e) {
 
 /* ── 12. INITIALISE ─────────────────────────────────────── */
 function init() {
-  // Set initial background colour
+  // Set initial background colour (also sets theme-color via applyBgColour)
   applyBgColour(hexToRgb(pages[0].bg));
-  const themeMeta = document.querySelector('meta[name="theme-color"]');
-  if (themeMeta) themeMeta.content = pages[0].bg;
   // Set initial pill label
   pillLabel.textContent = pages[0].title;
   // Set strip width in px (vw units don't work for translateX math)
