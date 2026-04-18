@@ -488,3 +488,10 @@ init();
 if ('screen' in window && 'orientation' in screen && typeof screen.orientation.lock === 'function') {
   screen.orientation.lock('portrait-primary').catch(() => {});
 }
+
+/* ── Service Worker registration ── */
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch(() => {});
+  });
+}
