@@ -583,17 +583,17 @@
         <span class="b-stat-val">${fmt(t.available)}</span>
         <span class="b-stat-lbl">Daily Limit</span>
       </div>
-      <div class="b-stat ${t.carryOut < 0 ? 'b-stat--neg' : ''}">
-        <span class="b-stat-val">${fmtBal(t.carryOut)}</span>
-        <span class="b-stat-lbl">Remaining</span>
+      <div class="b-stat">
+        <span class="b-stat-val">${fmt(t.spent)}</span>
+        <span class="b-stat-lbl">Spent Today</span>
       </div>
       <div class="b-stat ${t.carryIn > 0 ? 'b-stat--pos-outline' : t.carryIn < 0 ? 'b-stat--neg-outline' : ''}">
         <span class="b-stat-val" style="color:${t.carryIn > 0 ? '#34C759' : t.carryIn < 0 ? '#FF4F40' : ''}">${fmtSgn(t.carryIn)}</span>
         <span class="b-stat-lbl">Carried Over</span>
       </div>
-      <div class="b-stat">
-        <span class="b-stat-val">${fmt(t.spent)}</span>
-        <span class="b-stat-lbl">Spent Today</span>
+      <div class="b-stat ${t.carryOut > 0 ? 'b-stat--pos-outline' : t.carryOut < 0 ? 'b-stat--neg-outline' : ''}">
+        <span class="b-stat-val" style="color:${t.carryOut > 0 ? '#34C759' : t.carryOut < 0 ? '#FF4F40' : ''}">${fmtBal(t.carryOut)}</span>
+        <span class="b-stat-lbl">Remaining</span>
       </div>`;
   }
 
