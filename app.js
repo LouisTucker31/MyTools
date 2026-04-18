@@ -273,9 +273,11 @@ function snapToPage(index, fromVelocity) {
   setTranslate(targetX);
   currentTranslateX = targetX;
 
-  // Keep body/html background in sync so no gap shows around #app on iOS
+  // Keep body/html/theme-color in sync so no gap shows around #app on iOS
   document.body.style.backgroundColor = pages[clampedIndex].bg;
   document.documentElement.style.backgroundColor = pages[clampedIndex].bg;
+  const themeMeta = document.querySelector('meta[name="theme-color"]');
+  if (themeMeta) themeMeta.content = pages[clampedIndex].bg;
 
   // Update pill and dots
   updatePill(pages[clampedIndex].title);
@@ -468,6 +470,8 @@ function init() {
   applyBgColour(hexToRgb(pages[0].bg));
   document.body.style.backgroundColor = pages[0].bg;
   document.documentElement.style.backgroundColor = pages[0].bg;
+  const themeMeta = document.querySelector('meta[name="theme-color"]');
+  if (themeMeta) themeMeta.content = pages[0].bg;
   // Set initial pill label
   pillLabel.textContent = pages[0].title;
   // Set strip width in px (vw units don't work for translateX math)

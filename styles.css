@@ -43,14 +43,16 @@ body {
 #app {
   position: fixed;
   inset: 0;
-  overflow: hidden;
 }
 
 
 /* --- Background ------------------------------------------- */
 #bg {
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: -100px;
   z-index: 0;
   background-color: #0a2e14;
   background-image:
