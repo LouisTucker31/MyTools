@@ -408,7 +408,7 @@
   function closeSetup() {
     document.getElementById('b-setup-panel')?.classList.add('b-hidden');
     const toggle = document.getElementById('b-setup-toggle');
-    if (toggle) toggle.textContent = 'Edit';
+    if (toggle) toggle.textContent = state.settings.isSetup ? 'Edit' : 'Set Up';
     document.getElementById('b-income-panel')?.classList.add('b-hidden');
     const incToggle = document.getElementById('b-income-toggle');
     if (incToggle) incToggle.textContent = '+ Add Income';
@@ -495,7 +495,7 @@
         </div>
       </div>
       <div class="b-field b-hidden" id="b-enddate-wrap">
-        <span class="b-field-lbl">Period End / Payday</span>
+        <span class="b-field-lbl">Payday</span>
         <input type="date" class="b-input" id="b-enddate">
       </div>
       <div class="b-setup-actions">
@@ -613,6 +613,10 @@
 
     if (!state.settings.isSetup) {
       el.innerHTML = '<strong style="color:#fff;font-weight:700">Set up your budget</strong>';
+      // Always ensure panel is closed — never auto-open on load
+      document.getElementById('b-setup-panel')?.classList.add('b-hidden');
+      const toggle = document.getElementById('b-setup-toggle');
+      if (toggle) toggle.textContent = 'Set Up';
       return;
     }
 

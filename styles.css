@@ -1241,11 +1241,5 @@ option { background: #0f2418; color: #fff; }
   gap: 12px;
 }
 
-/* Gone Out: blue outline + value */
-.bl-totals-grid .b-stat:nth-child(2) { border-color: rgba(79,195,247,0.22); }
-.bl-totals-grid .b-stat:nth-child(2) .b-stat-val { color: #4FC3F7; }
-
-/* Still To Pay: red outline (only when > 0, handled inline) */
-.bl-totals-grid .b-stat:nth-child(3).b-stat--neg-outline { border-color: rgba(255,79,64,0.22); }
 
 .b-pie-wrap { display: flex; align-items: center; justify-content: center; padding: 4px 0; }

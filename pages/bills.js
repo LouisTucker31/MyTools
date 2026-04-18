@@ -232,12 +232,12 @@
     <span class="b-stat-val">${fmt(total)}</span>
     <span class="b-stat-lbl">Total<br>Bills</span>
   </div>
-  <div class="b-stat ${paid > 0 ? 'b-stat--pos-outline' : ''}">
-    <span class="b-stat-val" style="color:${paid > 0 ? '#4FC3F7' : ''}">${fmt(paid)}</span>
+  <div class="b-stat">
+    <span class="b-stat-val">${fmt(paid)}</span>
     <span class="b-stat-lbl">Gone<br>Out</span>
   </div>
-  <div class="b-stat ${remaining > 0 ? 'b-stat--neg-outline' : ''}">
-    <span class="b-stat-val" style="color:${remaining > 0 ? '#FF4F40' : ''}">${fmt(remaining)}</span>
+  <div class="b-stat">
+    <span class="b-stat-val">${fmt(remaining)}</span>
     <span class="b-stat-lbl">Still<br>To Come</span>
   </div>
 </div>`;
