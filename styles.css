@@ -193,12 +193,6 @@ body {
 }
 
 /* --- Pages ------------------------------------------------ */
-/*
-  Top padding clears the fixed header.
-  Bottom padding clears the dots indicator AND the home-bar on iPhone
-  (env safe-area-inset-bottom).  We add a generous 48px on top of
-  safe-area so content never sits flush against the bottom edge.
-*/
 .page {
   flex: 0 0 100vw;
   width: 100vw;
@@ -206,9 +200,9 @@ body {
   display: flex;
   flex-direction: column;
   padding-top:    max(84px, calc(env(safe-area-inset-top, 0px) + 84px));
-  padding-left:   max(20px, env(safe-area-inset-left, 20px));
-  padding-right:  max(20px, env(safe-area-inset-right, 20px));
-  padding-bottom: max(72px, calc(env(safe-area-inset-bottom, 0px) + 72px));
+  padding-left:   max(16px, env(safe-area-inset-left, 16px));
+  padding-right:  max(16px, env(safe-area-inset-right, 16px));
+  padding-bottom: 0;
   position: relative;
 }
 
@@ -414,10 +408,7 @@ body {
 .bl-root *   { min-width: 0; }
 
 .card--placeholder {
-  padding-bottom: max(72px, calc(env(safe-area-inset-bottom, 0px) + 72px));
-}
-.page:has(.card--placeholder) {
-  padding-bottom: 0;
+  padding-bottom: max(56px, calc(env(safe-area-inset-bottom, 0px) + 56px));
 }
 
 /* Scrollable content area inside the (now invisible) card */
@@ -442,7 +433,7 @@ body {
 .b-root {
   display: grid;
   gap: 16px;
-  padding-bottom: 8px;
+  padding-bottom: max(56px, calc(env(safe-area-inset-bottom, 0px) + 56px));
   /* rows shrink-wrap their content — don't stretch to fill scroll area */
   align-content: start;
 }
@@ -1264,7 +1255,7 @@ option { background: #0f2418; color: #fff; }
 }
 #card-content-savings::-webkit-scrollbar { display: none; }
 
-.sv-root     { min-width: 0; max-width: 100%; display: grid; gap: 16px; padding-bottom: 8px; align-content: start; }
+.sv-root     { min-width: 0; max-width: 100%; display: grid; gap: 16px; padding-bottom: max(56px, calc(env(safe-area-inset-bottom, 0px) + 56px)); align-content: start; }
 .sv-root *   { min-width: 0; }
 
 /* Desktop layout — two explicit column wrappers */
@@ -1423,7 +1414,7 @@ option { background: #0f2418; color: #fff; }
 }
 #card-content-debts::-webkit-scrollbar { display: none; }
 
-.dt-root     { min-width: 0; max-width: 100%; display: grid; gap: 16px; padding-bottom: 8px; align-content: start; }
+.dt-root     { min-width: 0; max-width: 100%; display: grid; gap: 16px; padding-bottom: max(56px, calc(env(safe-area-inset-bottom, 0px) + 56px)); align-content: start; }
 .dt-root *   { min-width: 0; }
 
 
