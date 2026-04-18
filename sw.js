@@ -10,12 +10,13 @@
    next visit and discard the old cached version.
    ============================================================ */
 
-const CACHE_VERSION = 'mymoney-v1';
+const CACHE_VERSION = 'mymoney-v3';
 
 const CORE_FILES = [
   './',
   './index.html',
   './styles.css',
+  './lock.js',
   './app.js',
   './pages/budget.js',
   './pages/bills.js',
