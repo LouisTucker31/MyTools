@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1a5c30"/>
+      <stop offset="100%" stop-color="#0a2e14"/>
+    </linearGradient>
+    <clipPath id="round">
+      <rect width="1024" height="1024" rx="230" ry="230"/>
+    </clipPath>
+  </defs>
+  <!-- Background -->
+  <rect width="1024" height="1024" rx="230" ry="230" fill="url(#bg)"/>
+  <!-- Subtle radial highlight at top -->
+  <ellipse cx="512" cy="100" rx="480" ry="260" fill="rgba(255,255,255,0.07)"/>
+  <!-- £ symbol -->
+  <text
+    x="512" y="680"
+    font-family="-apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif"
+    font-size="580"
+    font-weight="700"
+    fill="white"
+    text-anchor="middle"
+    letter-spacing="-10"
+  >£</text>
+</svg>

@@ -274,12 +274,12 @@ body {
 /* --- Footer ----------------------------------------------- */
 #footer {
   position: absolute;
-  bottom: -100px;
+  bottom: 0;
   left: 0;
   right: 0;
-  height: calc(100px + env(safe-area-inset-bottom, 0px));
+  height: calc(env(safe-area-inset-bottom, 0px) + 60px);
   z-index: 150;
-  background: transparent;
+  background: linear-gradient(to bottom, transparent 0%, var(--footer-bg, #0a2e14) 100%);
   pointer-events: none;
 }
 

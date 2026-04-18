@@ -125,6 +125,7 @@ function applyBgColour(rgb) {
   bg.style.backgroundColor = col;
   document.body.style.backgroundColor = col;
   document.documentElement.style.backgroundColor = col;
+  document.getElementById("app").style.setProperty("--footer-bg", col);
 }
 
 /* ── 6. BACKGROUND INTERPOLATION ───────────────────────────
