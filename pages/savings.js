@@ -86,66 +86,118 @@
   }
 
 
-  /* ── 4. SKELETON ──────────────────────────────────────────── */
+  /* ── 4. AUTO-UPDATE ──────────────────────────────────────── */
+
+  /*
+    On each boot, walk through every pot that has a payment day set.
+    For each one, find all payment dates that have passed since lastUpdated
+    and apply: balance += balance * (annualRate/12/100) + monthlyPayment
+    Store today as lastUpdated so we never double-apply.
+  */
+  function applyMissedPayments() {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    let changed = false;
+
+    state.pots.forEach(pot => {
+      if (!pot.day || pot.day < 1 || pot.day > 31) return;
+      if (!pot.monthly && !pot.rate) return;
+
+      // Parse lastUpdated, default to one month before today if never set
+      let cursor;
+      if (pot.lastUpdated) {
+        cursor = new Date(pot.lastUpdated + 'T12:00:00');
+      } else {
+        // First run — treat as if last updated yesterday so we only apply
+        // if today IS the payment date, not retroactively for all past months
+        cursor = new Date(today);
+        cursor.setDate(cursor.getDate() - 1);
+      }
+      cursor.setHours(0, 0, 0, 0);
+
+      // Walk forward month by month, applying each payment date that has passed
+      // Start from the month of cursor and step forward
+      let check = new Date(cursor.getFullYear(), cursor.getMonth(), pot.day);
+      // If the payment day in cursor's month is on or before cursor, start next month
+      if (check <= cursor) {
+        check = new Date(cursor.getFullYear(), cursor.getMonth() + 1, pot.day);
+      }
+
+      const monthlyRate = (pot.rate || 0) / 100 / 12;
+      const monthlyPmt  = pot.monthly || 0;
+
+      while (check <= today) {
+        pot.current = pot.current * (1 + monthlyRate) + monthlyPmt;
+        pot.current = Math.round(pot.current * 100) / 100;
+        changed = true;
+        // Advance to same day next month
+        check = new Date(check.getFullYear(), check.getMonth() + 1, pot.day);
+      }
+
+      // Record today so next boot knows where we left off
+      const todayStr = today.toISOString().slice(0, 10);
+      if (pot.lastUpdated !== todayStr) {
+        pot.lastUpdated = todayStr;
+        changed = true;
+      }
+    });
+
+    if (changed) saveState();
+  }
+
+
+  /* ── 5. SKELETON ──────────────────────────────────────────── */
 
   container.innerHTML = `
 <div class="b-root sv-root">
 
-  <!-- Add savings bar -->
-  <div class="b-module sv-area-add">
-    <div class="b-setup-bar">
-      <span class="b-setup-text" style="color:#fff;font-weight:700">Add Savings</span>
-      <button class="b-btn-ghost" id="sv-add-toggle">Add</button>
+  <!-- Left column: add + totals stacked together -->
+  <div class="sv-left-col">
+    <div class="b-module sv-area-add">
+      <div class="b-setup-bar">
+        <span class="b-setup-text" style="color:#fff;font-weight:700">Add Savings</span>
+        <button class="b-btn-ghost" id="sv-add-toggle">Add</button>
+      </div>
+      <div class="b-setup-panel b-hidden" id="sv-add-panel">
+        <div class="b-two-col">
+          <div class="b-field">
+            <input type="text" class="b-input" id="sv-name" placeholder="Name (e.g. Holiday Fund)">
+          </div>
+          <div class="b-field">
+            <select class="b-input" id="sv-type">
+              <option value="savings">Savings</option>
+              <option value="investment">Investment</option>
+              <option value="other">Other</option>
+            </select>
+          </div>
+        </div>
+        <div class="b-two-col">
+          <div class="b-field">
+            <input type="number" class="b-input" id="sv-current" placeholder="Current value (£)" min="0" step="0.01">
+          </div>
+          <div class="b-field">
+            <input type="number" class="b-input" id="sv-goal" placeholder="Goal value (£)" min="0" step="0.01">
+          </div>
+        </div>
+        <div class="b-two-col">
+          <div class="b-field">
+            <input type="number" class="b-input" id="sv-monthly" placeholder="Monthly payment (£)" min="0" step="0.01">
+          </div>
+          <div class="b-field">
+            <input type="number" class="b-input" id="sv-day" placeholder="Payment date (1–31)" min="1" max="31">
+          </div>
+        </div>
+        <div class="b-field">
+          <input type="number" class="b-input" id="sv-rate" placeholder="Interest rate (% per year, optional)" min="0" step="0.01">
+        </div>
+        <button class="b-btn-add" id="sv-btn-save">Add</button>
+      </div>
     </div>
-    <div class="b-setup-panel b-hidden" id="sv-add-panel">
-      <div class="b-two-col">
-        <div class="b-field">
-          <input type="text" class="b-input" id="sv-name" placeholder="Name (e.g. Holiday Fund)">
-        </div>
-        <div class="b-field">
-          <select class="b-input" id="sv-type">
-            <option value="savings">Savings</option>
-            <option value="investment">Investment</option>
-          </select>
-        </div>
-      </div>
-      <div class="b-two-col">
-        <div class="b-field">
-          <input type="number" class="b-input" id="sv-current" placeholder="Current value (£)" min="0" step="0.01">
-        </div>
-        <div class="b-field">
-          <input type="number" class="b-input" id="sv-goal" placeholder="Goal value (£)" min="0" step="0.01">
-        </div>
-      </div>
-      <div class="b-two-col">
-        <div class="b-field">
-          <input type="number" class="b-input" id="sv-monthly" placeholder="Monthly payment (£)" min="0" step="0.01">
-        </div>
-        <div class="b-field">
-          <input type="number" class="b-input" id="sv-day" placeholder="Payment date (1–31)" min="1" max="31">
-        </div>
-      </div>
-      <div class="b-field">
-        <input type="number" class="b-input" id="sv-rate" placeholder="Interest rate (% per year, optional)" min="0" step="0.01">
-      </div>
-      <button class="b-btn-add" id="sv-btn-save">Add</button>
-    </div>
+    <div class="sv-area-totals" id="sv-totals"></div>
   </div>
 
-  <!-- Savings list -->
-  <div class="b-module sv-area-savings" id="sv-savings-module">
-    <div class="b-label">My Savings</div>
-    <div id="sv-savings-list"></div>
-  </div>
-
-  <!-- Investments list -->
-  <div class="b-module sv-area-invest" id="sv-invest-module">
-    <div class="b-label">My Investments</div>
-    <div id="sv-invest-list"></div>
-  </div>
-
-  <!-- Totals -->
-  <div class="sv-area-totals" id="sv-totals"></div>
+  <!-- Right column: rendered dynamically -->
+  <div class="sv-right-col" id="sv-right-col"></div>
 
 </div>`;
 
@@ -153,42 +205,71 @@
   /* ── 5. RENDER ────────────────────────────────────────────── */
 
   function render() {
-    renderSavingsList();
-    renderInvestList();
+    renderRightCol();
     renderTotals();
   }
 
-  function renderSavingsList() {
-    const el = document.getElementById('sv-savings-list');
-    if (!el) return;
-    const pots = state.pots.filter(p => p.type !== 'investment');
-    el.innerHTML = pots.length
-      ? pots.map(p => p.id === editingId ? buildEditRow(p) : buildRow(p)).join('')
-      : '<div class="b-txn-empty">No savings added yet</div>';
-  }
+  const SV_SECTIONS = [
+    { type: 'savings',    label: 'My Savings' },
+    { type: 'investment', label: 'My Investments' },
+    { type: 'other',      label: 'Other' },
+  ];
 
-  function renderInvestList() {
-    const el = document.getElementById('sv-invest-list');
-    if (!el) return;
-    const pots = state.pots.filter(p => p.type === 'investment');
-    el.innerHTML = pots.length
-      ? pots.map(p => p.id === editingId ? buildEditRow(p) : buildRow(p)).join('')
-      : '<div class="b-txn-empty">No investments added yet</div>';
+  function renderRightCol() {
+    const col = document.getElementById('sv-right-col');
+    if (!col) return;
+
+    const hasPots = state.pots.length > 0;
+
+    if (!hasPots) {
+      col.innerHTML = `
+        <div class="b-module">
+          <div class="b-label">My Savings</div>
+          <div class="b-txn-empty">No savings added yet</div>
+        </div>`;
+      return;
+    }
+
+    col.innerHTML = SV_SECTIONS
+      .filter(s => state.pots.some(p => p.type === s.type))
+      .map(s => {
+        const pots = state.pots.filter(p => p.type === s.type);
+        return `
+        <div class="b-module">
+          <div class="b-label">${s.label}</div>
+          ${pots.map(p => p.id === editingId ? buildEditRow(p) : buildRow(p)).join('')}
+        </div>`;
+      }).join('');
+
+    // Re-wire click handlers after DOM rebuild
+    col.querySelectorAll('[data-id]').forEach(row => {
+      row.addEventListener('click', e => {
+        const id     = row.dataset.id;
+        const action = e.target.closest('[data-action]')?.dataset.action;
+        if (action === 'edit')        editPot(id);
+        else if (action === 'save')   saveEdit(id);
+        else if (action === 'cancel') { editingId = null; render(); }
+        else if (action === 'delete') deletePot(id);
+      });
+    });
   }
 
   function buildRow(p) {
     const projection = projectGoal(p);
-    const isInvest   = p.type === 'investment';
-    const tagClass   = isInvest ? 'sv-tag--invest' : 'sv-tag--savings';
-    const tagLabel   = isInvest ? 'Investment' : 'Savings';
-    const progress   = p.goal > 0 ? Math.min(100, (p.current / p.goal) * 100) : 0;
+    const tagMap = {
+      savings:    { cls: 'sv-tag--savings', label: 'Savings' },
+      investment: { cls: 'sv-tag--invest',  label: 'Investment' },
+      other:      { cls: 'sv-tag--other',   label: 'Other' },
+    };
+    const { cls: tagClass, label: tagLabel } = tagMap[p.type] || tagMap.savings;
+    const isInvest = p.type === 'investment';
+    const progress = p.goal > 0 ? Math.min(100, (p.current / p.goal) * 100) : 0;
 
     return `
 <div class="sv-row" data-id="${p.id}">
   <div class="sv-row-main">
     <div class="sv-row-top">
       <span class="sv-name">${p.name}</span>
-      <span class="sv-tag ${tagClass}">${tagLabel}</span>
     </div>
     <div class="sv-row-vals">
       <span class="sv-current">${fmt(p.current)}</span>
@@ -217,6 +298,7 @@
       <select class="b-input" data-field="type">
         <option value="savings"    ${p.type === 'savings'    ? 'selected' : ''}>Savings</option>
         <option value="investment" ${p.type === 'investment' ? 'selected' : ''}>Investment</option>
+        <option value="other"      ${p.type === 'other'      ? 'selected' : ''}>Other</option>
       </select>
     </div>
     <div class="b-two-col">
@@ -241,11 +323,10 @@
     const el = document.getElementById('sv-totals');
     if (!el) return;
 
-    const savings   = state.pots.filter(p => p.type !== 'investment');
-    const invest    = state.pots.filter(p => p.type === 'investment');
-    const totalSav  = savings.reduce((s, p) => s + p.current, 0);
-    const totalInv  = invest.reduce((s, p) => s + p.current, 0);
-    const totalAll  = totalSav + totalInv;
+    const totalSav = state.pots.filter(p => p.type === 'savings').reduce((s, p) => s + p.current, 0);
+    const totalInv = state.pots.filter(p => p.type === 'investment').reduce((s, p) => s + p.current, 0);
+    const totalOth = state.pots.filter(p => p.type === 'other').reduce((s, p) => s + p.current, 0);
+    const totalAll = totalSav + totalInv + totalOth;
 
     el.innerHTML = `
 <div class="sv-totals-grid">
@@ -259,7 +340,7 @@
   </div>
   <div class="b-stat">
     <span class="b-stat-val">${fmt(totalInv)}</span>
-    <span class="b-stat-lbl">Total<br>Investments</span>
+    <span class="b-stat-lbl">Total<br>Invested</span>
   </div>
 </div>`;
   }
@@ -312,7 +393,7 @@
 
   function editPot(id) {
     editingId = id;
-    renderList();
+    render();
     document.querySelector(`[data-id="${id}"] [data-field="name"]`)?.focus();
   }
 
@@ -362,23 +443,11 @@
     if (e.key === 'Enter') { e.preventDefault(); savePot(); }
   });
 
-  ['sv-savings-list', 'sv-invest-list'].forEach(listId => {
-    document.getElementById(listId)?.addEventListener('click', e => {
-      const row = e.target.closest('[data-id]');
-      if (!row) return;
-      const id     = row.dataset.id;
-      const action = e.target.closest('[data-action]')?.dataset.action;
-
-      if (action === 'edit')        editPot(id);
-      else if (action === 'save')   saveEdit(id);
-      else if (action === 'cancel') { editingId = null; render(); }
-      else if (action === 'delete') deletePot(id);
-    });
-  });
 
 
-  /* ── 8. BOOT ──────────────────────────────────────────────── */
+  /* ── 9. BOOT ──────────────────────────────────────────────── */
 
+  applyMissedPayments();
   render();
 
 })();

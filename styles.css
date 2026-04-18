@@ -526,7 +526,7 @@ body {
   justify-content: space-between;
   margin-bottom: 20px;
 }
-.b-list-header .b-label { margin-bottom: 0; flex: 1; text-align: center; }
+.b-list-header .b-label { margin-bottom: 0; flex: 1; text-align: left; }
 
 
 /* ── Unified ghost button — used for ALL action buttons ─────── */
@@ -1267,20 +1267,16 @@ option { background: #0f2418; color: #fff; }
 .sv-root     { min-width: 0; max-width: 100%; display: grid; gap: 16px; padding-bottom: 8px; align-content: start; }
 .sv-root *   { min-width: 0; }
 
-/* Desktop layout */
+/* Desktop layout — two explicit column wrappers */
 @media (min-width: 680px) {
-  .sv-root {
+  .sv-root,
+  .dt-root {
     grid-template-columns: 1fr 1fr;
-    grid-template-areas:
-      "add     savings"
-      "totals  savings"
-      "totals  invest";
+    grid-template-areas: "left right";
     align-items: start;
   }
-  .sv-area-add     { grid-area: add; }
-  .sv-area-totals  { grid-area: totals; }
-  .sv-area-savings { grid-area: savings; }
-  .sv-area-invest  { grid-area: invest; }
+  .sv-left-col  { grid-area: left;  display: flex; flex-direction: column; gap: 16px; }
+  .sv-right-col { grid-area: right; display: flex; flex-direction: column; gap: 16px; }
 }
 
 /* ── Pot rows ────────────────────────────────────────────── */
@@ -1332,6 +1328,7 @@ option { background: #0f2418; color: #fff; }
 }
 .sv-tag--savings  { background: rgba(79,195,247,0.15); color: #4FC3F7; }
 .sv-tag--invest   { background: rgba(175,82,222,0.18); color: #BF7FE0; }
+.sv-tag--other    { background: rgba(255,255,255,0.10); color: rgba(255,255,255,0.55); }
 
 /* ── Values + progress ───────────────────────────────────── */
 .sv-row-vals {
@@ -1367,6 +1364,7 @@ option { background: #0f2418; color: #fff; }
   transition: width 0.4s cubic-bezier(0.25, 1, 0.5, 1);
 }
 .sv-progress-fill--invest { background: #BF7FE0; }
+.sv-progress-fill--debt   { background: #FF4F40; }
 
 /* ── Meta row (monthly, rate, projection) ────────────────── */
 .sv-row-meta {
@@ -1392,3 +1390,46 @@ option { background: #0f2418; color: #fff; }
   grid-template-columns: repeat(3, 1fr);
   gap: 12px;
 }
+
+
+/* ============================================================
+   DEBTS PAGE — dt-* classes
+   ============================================================ */
+
+.card--debts {
+  background: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.card--debts::before { display: none; }
+.card--debts .card-title { display: none; }
+
+#card-content-debts {
+  flex: 1;
+  min-height: 0;
+  overflow-y: scroll;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  display: block;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+#card-content-debts::-webkit-scrollbar { display: none; }
+
+.dt-root     { min-width: 0; max-width: 100%; display: grid; gap: 16px; padding-bottom: 8px; align-content: start; }
+.dt-root *   { min-width: 0; }
+
+
+/* ── Debt type tags ──────────────────────────────────────── */
+.dt-tag--credit    { background: rgba(255,79,64,0.15);   color: #FF6B5B; }
+.dt-tag--loan      { background: rgba(255,159,64,0.15);  color: #FFB347; }
+.dt-tag--overdraft { background: rgba(255,214,64,0.15);  color: #FFD700; }
+.dt-tag--borrowed  { background: rgba(175,82,222,0.15);  color: #BF7FE0; }
+.dt-tag--other     { background: rgba(255,255,255,0.10); color: rgba(255,255,255,0.55); }
