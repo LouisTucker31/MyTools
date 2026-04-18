@@ -273,9 +273,7 @@ function snapToPage(index, fromVelocity) {
   setTranslate(targetX);
   currentTranslateX = targetX;
 
-  // Keep body/html/theme-color in sync so no gap shows around #app on iOS
-  document.body.style.backgroundColor = pages[clampedIndex].bg;
-  document.documentElement.style.backgroundColor = pages[clampedIndex].bg;
+  // Keep theme-color in sync so iOS status bar matches
   const themeMeta = document.querySelector('meta[name="theme-color"]');
   if (themeMeta) themeMeta.content = pages[clampedIndex].bg;
 
@@ -468,8 +466,6 @@ function onPointerUp(e) {
 function init() {
   // Set initial background colour
   applyBgColour(hexToRgb(pages[0].bg));
-  document.body.style.backgroundColor = pages[0].bg;
-  document.documentElement.style.backgroundColor = pages[0].bg;
   const themeMeta = document.querySelector('meta[name="theme-color"]');
   if (themeMeta) themeMeta.content = pages[0].bg;
   // Set initial pill label
