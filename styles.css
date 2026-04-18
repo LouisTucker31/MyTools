@@ -588,6 +588,8 @@ option { background: #0f2418; color: #fff; }
 }
 .b-stat--pos { background: rgba(52,199,89,0.11); border-color: rgba(52,199,89,0.20); }
 .b-stat--neg { background: rgba(255,59,48,0.11);  border-color: rgba(255,59,48,0.20); }
+.b-stat--pos-outline { border-color: rgba(52,199,89,0.20); }
+.b-stat--neg-outline { border-color: rgba(255,59,48,0.20); }
 
 .b-stat-val {
   font-size: 17px;

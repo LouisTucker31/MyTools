@@ -95,6 +95,19 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }
 
+  // Migration: if paycheck mode and no payday stored, the periodEnd IS the
+  // raw payday — subtract one day to make it the last day of the period.
+  function migrateState() {
+    const s = state.settings;
+    if (s.periodMode === 'paycheck' && s.periodEnd && !s.payday) {
+      s.payday    = s.periodEnd;
+      const d     = parseISO(s.periodEnd);
+      d.setDate(d.getDate() - 1);
+      s.periodEnd = toISO(d);
+      saveState();
+    }
+  }
+
 
   /* ── 4. DATE UTILITIES ────────────────────────────────────── */
 
@@ -111,7 +124,8 @@
     return new Date(y, m - 1, d);
   }
 
-  function shortDate(d) {
+  function shortDate(d, offsetDays = 0) {
+    if (offsetDays) { d = new Date(d); d.setDate(d.getDate() + offsetDays); }
     return `${d.getDate()} ${MON_SHORT[d.getMonth()]}`;
   }
 
@@ -352,7 +366,7 @@
 
     if (incomeEl) incomeEl.value = state.settings.disposableIncome || '';
     if (modeEl)   modeEl.value  = state.settings.periodMode       || 'month';
-    if (endEl)    endEl.value   = state.settings.periodEnd        || '';
+    if (endEl)    endEl.value   = state.settings.payday || state.settings.periodEnd || '';
     endWrap?.classList.toggle('b-hidden', state.settings.periodMode !== 'paycheck');
 
     panel.classList.remove('b-hidden');
@@ -556,7 +570,7 @@
     if (!el) return;
 
     if (!state.settings.isSetup || !computed.today) {
-      el.innerHTML = ["Today's Limit", 'Spent Today', 'Carried Over', 'Remaining']
+      el.innerHTML = ["Daily Limit", 'Remaining', 'Carried Over', 'Spent Today']
         .map(lbl => `<div class="b-stat">
           <span class="b-stat-val">—</span>
           <span class="b-stat-lbl">${lbl}</span></div>`).join('');
@@ -567,19 +581,19 @@
     el.innerHTML = `
       <div class="b-stat">
         <span class="b-stat-val">${fmt(t.available)}</span>
-        <span class="b-stat-lbl">Today's Limit</span>
-      </div>
-      <div class="b-stat">
-        <span class="b-stat-val">${fmt(t.spent)}</span>
-        <span class="b-stat-lbl">Spent Today</span>
-      </div>
-      <div class="b-stat ${t.carryIn > 0 ? 'b-stat--pos' : t.carryIn < 0 ? 'b-stat--neg' : ''}">
-        <span class="b-stat-val">${fmtSgn(t.carryIn)}</span>
-        <span class="b-stat-lbl">Carried Over</span>
+        <span class="b-stat-lbl">Daily Limit</span>
       </div>
       <div class="b-stat ${t.carryOut < 0 ? 'b-stat--neg' : ''}">
         <span class="b-stat-val">${fmtBal(t.carryOut)}</span>
         <span class="b-stat-lbl">Remaining</span>
+      </div>
+      <div class="b-stat ${t.carryIn > 0 ? 'b-stat--pos-outline' : t.carryIn < 0 ? 'b-stat--neg-outline' : ''}">
+        <span class="b-stat-val" style="color:${t.carryIn > 0 ? '#34C759' : t.carryIn < 0 ? '#FF4F40' : ''}">${fmtSgn(t.carryIn)}</span>
+        <span class="b-stat-lbl">Carried Over</span>
+      </div>
+      <div class="b-stat">
+        <span class="b-stat-val">${fmt(t.spent)}</span>
+        <span class="b-stat-lbl">Spent Today</span>
       </div>`;
   }
 
@@ -728,7 +742,7 @@
         `${MONTH_NAMES[m]} ${y} <span class="b-cal-unset">· set up to activate</span>`;
     } else if (isCurrent && periodMode === 'paycheck' && periodEnd) {
       labelEl.innerHTML =
-        `${MONTH_NAMES[m]} ${y} <span class="b-cal-unset">· payday ${shortDate(parseISO(periodEnd))}</span>`;
+        `${MONTH_NAMES[m]} ${y} <span class="b-cal-unset">· payday ${shortDate(parseISO(state.settings.payday || periodEnd))}</span>`;
     } else {
       labelEl.textContent = `${MONTH_NAMES[m]} ${y}`;
     }
@@ -978,7 +992,12 @@ ${extraLine}
 
     state.settings.disposableIncome = income;
     state.settings.periodMode       = mode;
-    if (mode === 'paycheck') state.settings.periodEnd = endDate;
+    if (mode === 'paycheck') {
+      state.settings.payday    = endDate; // the actual payday date (display only)
+      const d = parseISO(endDate);
+      d.setDate(d.getDate() - 1);
+      state.settings.periodEnd = toISO(d); // day before payday = last day of period
+    }
 
     state.settings.isSetup = true;
     initPeriod();
@@ -1301,6 +1320,7 @@ ${extraLine}
     saveState();
   }
 
+  migrateState();
   computeAll();
   container.innerHTML = buildSkeleton();
   render();
