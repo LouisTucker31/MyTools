@@ -217,7 +217,7 @@ body {
   backdrop-filter: blur(32px) saturate(180%);
   -webkit-backdrop-filter: blur(32px) saturate(180%);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 24px;
+  border-radius: 20px;
   padding: 24px;
   display: flex;
   flex-direction: column;
@@ -493,7 +493,7 @@ body {
 .b-module {
   background: rgba(255,255,255,0.05);
   border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 28px;
+  border-radius: 20px;
   padding: 20px;
   box-shadow:
     0 2px 12px rgba(0,0,0,0.18),
@@ -650,7 +650,7 @@ option { background: #0f2418; color: #fff; }
 .b-stat {
   background: rgba(255,255,255,0.07);
   border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 22px;
+  border-radius: 20px;
   padding: 16px;
   display: flex;
   flex-direction: column;
@@ -1013,7 +1013,7 @@ option { background: #0f2418; color: #fff; }
 .b-sum-tile {
   background: rgba(255,255,255,0.05);
   border: 1px solid rgba(255,255,255,0.07);
-  border-radius: 13px;
+  border-radius: 20px;
   padding: 14px 12px;
   box-shadow:
     0 2px 8px rgba(0,0,0,0.15),
@@ -1151,7 +1151,7 @@ option { background: #0f2418; color: #fff; }
 
 .bl-row--editing {
   background: rgba(255,255,255,0.04);
-  border-radius: 14px;
+  border-radius: 20px;
   border-bottom: none;
   padding: 14px 12px;
   margin-bottom: 4px;
@@ -1263,11 +1263,15 @@ option { background: #0f2418; color: #fff; }
   .sv-root,
   .dt-root {
     grid-template-columns: 1fr 1fr;
-    grid-template-areas: "left right";
+    grid-template-areas:
+      "left right"
+      "totals right";
     align-items: start;
   }
-  .sv-left-col  { grid-area: left;  display: flex; flex-direction: column; gap: 16px; }
-  .sv-right-col { grid-area: right; display: flex; flex-direction: column; gap: 16px; }
+  .sv-left-col   { grid-area: left;   display: flex; flex-direction: column; gap: 16px; }
+  .sv-right-col  { grid-area: right;  display: flex; flex-direction: column; gap: 16px; }
+  .sv-area-totals,
+  .dt-area-totals { grid-area: totals; }
 }
 
 /* ── Pot rows ────────────────────────────────────────────── */
@@ -1282,7 +1286,7 @@ option { background: #0f2418; color: #fff; }
 
 .sv-row--editing {
   background: rgba(255,255,255,0.04);
-  border-radius: 14px;
+  border-radius: 20px;
   border-bottom: none;
   padding: 14px 12px;
   margin-bottom: 4px;
@@ -1378,7 +1382,7 @@ option { background: #0f2418; color: #fff; }
 /* ── Totals grid ─────────────────────────────────────────── */
 .sv-totals-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, 1fr);
   gap: 12px;
 }
 

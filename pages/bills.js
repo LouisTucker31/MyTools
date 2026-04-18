@@ -40,12 +40,31 @@
   }
 
   function fmt(n) {
-    return '£' + Math.abs(n).toFixed(2);
+    if (n === 0) return '—';
+    return '£' + Math.abs(n).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
-  // Sort bills by day of month
+  // Sort bills by next due date in the current pay cycle.
+  // Upcoming bills come first (ascending day from today), past bills at the bottom.
   function sortedBills() {
-    return [...state.bills].sort((a, b) => a.day - b.day);
+    const today = new Date().getDate();
+    const P = getPaydayOfMonth();
+
+    // Cycle position: days run from P, P+1, ..., 28/29/30/31, 1, 2, ..., P-1
+    function cyclePos(day) {
+      return day >= P ? day - P : day + (32 - P);
+    }
+
+    return [...state.bills].sort((a, b) => {
+      const aPos = cyclePos(a.day);
+      const bPos = cyclePos(b.day);
+      const todayPos = cyclePos(today);
+      // Upcoming = cycle position strictly after today's position
+      const aUpcoming = aPos > todayPos;
+      const bUpcoming = bPos > todayPos;
+      if (aUpcoming !== bUpcoming) return aUpcoming ? -1 : 1;
+      return aPos - bPos;
+    });
   }
 
   function flashInput(el) {

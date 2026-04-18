@@ -552,9 +552,11 @@
   <!-- E: Today's list -->
   <div class="b-module b-area-list">
     <div class="b-list-header">
-      <button class="b-cal-nav-btn" id="b-list-prev">‹</button>
       <span class="b-label" id="b-today-label">Today</span>
-      <button class="b-cal-nav-btn" id="b-list-next">›</button>
+      <div class="b-cal-nav">
+        <button class="b-cal-nav-btn" id="b-list-prev">‹</button>
+        <button class="b-cal-nav-btn" id="b-list-next">›</button>
+      </div>
     </div>
     <div class="b-txn-list" id="b-txn-list"></div>
   </div>
@@ -565,11 +567,9 @@
       <span class="b-label" id="b-cal-label">—</span>
       <div class="b-cal-nav">
         <button class="b-cal-nav-btn" id="b-cal-prev">‹</button>
-        <button class="b-cal-nav-btn b-cal-nav-today b-hidden" id="b-cal-today">Today</button>
         <button class="b-cal-nav-btn" id="b-cal-next">›</button>
       </div>
     </div>
-    <div class="b-cal-legend" id="b-cal-legend"></div>
     <div class="b-cal-header">${wdays}</div>
     <div class="b-cal-grid" id="b-cal-grid"></div>
   </div>
@@ -742,12 +742,12 @@
       }
     }
 
-    // Show/hide nav arrows based on period bounds
-    if (prevBtn) prevBtn.style.visibility = listViewDate <= (periodDays[0]?.date || listViewDate) ? 'hidden' : '';
-    if (nextBtn) {
-      const lastPast = [...periodDays].reverse().find(d => d.date <= today);
-      nextBtn.style.visibility = listViewDate >= (lastPast?.date || listViewDate) ? 'hidden' : '';
-    }
+    // Grey out nav arrows at period bounds — always visible, never hidden
+    const atFirst = listViewDate <= (periodDays[0]?.date || listViewDate);
+    const lastPast = [...periodDays].reverse().find(d => d.date <= today);
+    const atLast  = listViewDate >= (lastPast?.date || listViewDate);
+    if (prevBtn) { prevBtn.disabled = atFirst; prevBtn.style.opacity = atFirst ? '0.3' : ''; }
+    if (nextBtn) { nextBtn.disabled = atLast;  nextBtn.style.opacity = atLast  ? '0.3' : ''; }
 
     if (!txns.length) {
       el.innerHTML = `<div class="b-txn-empty">${isToday ? 'No spending logged today' : 'No spending this day'}</div>`;
@@ -825,8 +825,8 @@
   function renderCalendar() {
     const gridEl   = document.getElementById('b-cal-grid');
     const labelEl  = document.getElementById('b-cal-label');
-    const legendEl = document.getElementById('b-cal-legend');
-    const todayBtn = document.getElementById('b-cal-today');
+    const prevBtn = document.getElementById('b-cal-prev');
+    const nextBtn = document.getElementById('b-cal-next');
     if (!gridEl || !labelEl) return;
 
     const y     = calViewYear;
@@ -835,8 +835,9 @@
     const today = todayISO();
     const isCurrent = isViewingCurrentMonth();
 
-    // Show/hide Today button
-    if (todayBtn) todayBtn.classList.toggle('b-hidden', isCurrent);
+    // Grey out arrows at bounds
+    if (prevBtn) { prevBtn.disabled = false; prevBtn.style.opacity = ''; }
+    if (nextBtn) { nextBtn.disabled = isCurrent; nextBtn.style.opacity = isCurrent ? '0.3' : ''; }
 
     // Get computed data for the viewed month
     const viewData = isCurrent ? computed : computeForMonth(y, m);
@@ -858,15 +859,6 @@
     }
 
     // Legend
-    if (legendEl) {
-      const hasActivity = viewData.days.some(d => d.status === 'past-under' || d.status === 'past-over');
-      legendEl.innerHTML = !isSetup ? '' : hasActivity ? `
-        <span class="b-cal-leg b-cal-leg--under">Under</span>
-        <span class="b-cal-leg b-cal-leg--over">Over</span>
-        <span class="b-cal-leg b-cal-leg--today">Today</span>` :
-        isCurrent ? `<span class="b-cal-leg b-cal-leg--today">Today</span>` : '';
-    }
-
     // Grid offset — Mon=0 … Sun=6
     let dow = new Date(y, m, 1).getDay();
     dow = dow === 0 ? 6 : dow - 1;
@@ -1351,13 +1343,6 @@ ${extraLine}
       renderSummaryAndCats();
     });
 
-    document.getElementById('b-cal-today')?.addEventListener('click', () => {
-      const now    = new Date();
-      calViewYear  = now.getFullYear();
-      calViewMonth = now.getMonth();
-      renderCalendar();
-      renderSummaryAndCats();
-    });
 
     wireScrollDrag(container);
   }

@@ -40,7 +40,8 @@
   }
 
   function fmt(n) {
-    return '£' + parseFloat(Math.abs(n)).toFixed(2);
+    if (n === 0) return '—';
+    return '£' + Math.abs(n).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
   function flashInput(el) {
@@ -151,7 +152,7 @@
   container.innerHTML = `
 <div class="b-root sv-root">
 
-  <!-- Left column: add + totals stacked together -->
+  <!-- Left column: add box -->
   <div class="sv-left-col">
     <div class="b-module sv-area-add">
       <div class="b-setup-bar">
@@ -193,11 +194,13 @@
         <button class="b-btn-add" id="sv-btn-save">Add</button>
       </div>
     </div>
-    <div class="sv-area-totals" id="sv-totals"></div>
   </div>
 
   <!-- Right column: rendered dynamically -->
   <div class="sv-right-col" id="sv-right-col"></div>
+
+  <!-- Totals: always at the bottom -->
+  <div class="sv-area-totals" id="sv-totals"></div>
 
 </div>`;
 
@@ -323,24 +326,18 @@
     const el = document.getElementById('sv-totals');
     if (!el) return;
 
-    const totalSav = state.pots.filter(p => p.type === 'savings').reduce((s, p) => s + p.current, 0);
-    const totalInv = state.pots.filter(p => p.type === 'investment').reduce((s, p) => s + p.current, 0);
-    const totalOth = state.pots.filter(p => p.type === 'other').reduce((s, p) => s + p.current, 0);
-    const totalAll = totalSav + totalInv + totalOth;
+    const totalAll     = state.pots.reduce((s, p) => s + p.current, 0);
+    const totalPayments = state.pots.reduce((s, p) => s + (p.monthly || 0), 0);
 
     el.innerHTML = `
 <div class="sv-totals-grid">
   <div class="b-stat">
     <span class="b-stat-val">${fmt(totalAll)}</span>
-    <span class="b-stat-lbl">Total<br>Wealth</span>
-  </div>
-  <div class="b-stat">
-    <span class="b-stat-val">${fmt(totalSav)}</span>
     <span class="b-stat-lbl">Total<br>Savings</span>
   </div>
   <div class="b-stat">
-    <span class="b-stat-val">${fmt(totalInv)}</span>
-    <span class="b-stat-lbl">Total<br>Invested</span>
+    <span class="b-stat-val">${fmt(totalPayments)}</span>
+    <span class="b-stat-lbl">Total<br>Payments</span>
   </div>
 </div>`;
   }
@@ -444,6 +441,50 @@
   });
 
 
+
+  /* ── 8. SCROLL DRAG ──────────────────────────────────────── */
+
+  function wireScrollDrag(el) {
+    let dragging = false, pointerId = null, startY = 0, startScroll = 0;
+    let lastY = 0, lastT = 0, velY = 0, momentumId = null, moved = false;
+    const DRAG_THRESHOLD = 4;
+    function cancelMomentum() { if (momentumId) { cancelAnimationFrame(momentumId); momentumId = null; } }
+    function stopDrag(kick) {
+      if (!dragging) return;
+      dragging = false; pointerId = null; moved = false; el.style.cursor = '';
+      if (!kick) return;
+      if (Math.abs(velY) > 0.05) {
+        let v = -velY * 14;
+        const decay = 0.91;
+        const step = () => { el.scrollTop += v; v *= decay; if (Math.abs(v) > 0.4) momentumId = requestAnimationFrame(step); else momentumId = null; };
+        momentumId = requestAnimationFrame(step);
+      }
+    }
+    el.addEventListener('pointerdown', e => {
+      if (!e.isPrimary || e.pointerType === 'mouse') return;
+      const tag = e.target.tagName;
+      if (tag === 'INPUT' || tag === 'SELECT' || tag === 'BUTTON' || tag === 'TEXTAREA') return;
+      cancelMomentum(); dragging = true; moved = false; pointerId = e.pointerId;
+      startY = e.clientY; startScroll = el.scrollTop; lastY = e.clientY; lastT = e.timeStamp; velY = 0;
+    });
+    el.addEventListener('pointermove', e => {
+      if (!dragging || e.pointerId !== pointerId) return;
+      const dy = e.clientY - startY;
+      if (!moved && Math.abs(dy) < DRAG_THRESHOLD) return;
+      if (!moved) { try { el.setPointerCapture(e.pointerId); } catch (_) {} }
+      moved = true;
+      const dt = e.timeStamp - lastT;
+      if (dt > 0) velY = (e.clientY - lastY) / dt;
+      lastY = e.clientY; lastT = e.timeStamp;
+      el.scrollTop = startScroll - dy;
+      e.preventDefault();
+    }, { passive: false });
+    el.addEventListener('pointerup', e => { if (e.pointerId !== pointerId) return; try { el.releasePointerCapture(e.pointerId); } catch (_) {} stopDrag(moved); });
+    el.addEventListener('pointercancel', e => { if (e.pointerId !== pointerId) return; stopDrag(false); });
+    el.addEventListener('lostpointercapture', e => { if (e.pointerId !== pointerId) return; stopDrag(moved); });
+  }
+
+  wireScrollDrag(container);
 
   /* ── 9. BOOT ──────────────────────────────────────────────── */
 
