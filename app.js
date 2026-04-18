@@ -203,7 +203,7 @@ function updatePill(newLabel) {
     // We do this by briefly allowing width: max-content to measure,
     // then animating from fromWidth → measured width.
     pill.style.width = "max-content";
-    const toWidth = pill.scrollWidth + 40; // 40 = 2 × 20px padding
+    const toWidth = pill.scrollWidth + 24; // 24 = 2 × 12px padding
 
     // Force layout read, then snap back to fromWidth and animate
     pill.style.transition = "none";
