@@ -1227,6 +1227,10 @@ option { background: #0f2418; color: #fff; }
 .sv-root     { min-width: 0; max-width: 100%; display: grid; gap: 16px; padding-left: max(16px, env(safe-area-inset-left, 16px)); padding-right: max(16px, env(safe-area-inset-right, 16px)); padding-bottom: max(16px, calc(env(safe-area-inset-bottom, 0px) + 16px)); align-content: start; }
 .sv-root *   { min-width: 0; }
 
+/* Column wrappers always flex so modules inside them have consistent 16px gaps */
+.sv-left-col,
+.sv-right-col  { display: flex; flex-direction: column; gap: 16px; }
+
 /* Desktop layout — two explicit column wrappers */
 @media (min-width: 680px) {
   .sv-root,
@@ -1237,8 +1241,8 @@ option { background: #0f2418; color: #fff; }
       "totals right";
     align-items: start;
   }
-  .sv-left-col   { grid-area: left;   display: flex; flex-direction: column; gap: 16px; }
-  .sv-right-col  { grid-area: right;  display: flex; flex-direction: column; gap: 16px; }
+  .sv-left-col   { grid-area: left; }
+  .sv-right-col  { grid-area: right; }
   .sv-area-totals,
   .dt-area-totals { grid-area: totals; }
 }
@@ -1371,165 +1375,3 @@ option { background: #0f2418; color: #fff; }
 .dt-tag--overdraft { background: rgba(255,214,64,0.15);  color: #FFD700; }
 .dt-tag--borrowed  { background: rgba(175,82,222,0.15);  color: #BF7FE0; }
 .dt-tag--other     { background: rgba(255,255,255,0.10); color: rgba(255,255,255,0.55); }
-
-
-/* ============================================================
-   LOCK SCREEN — lk-* / lock-* classes
-   ============================================================ */
-
-#lock-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 9999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(40px) saturate(160%);
-  -webkit-backdrop-filter: blur(40px) saturate(160%);
-  transition: opacity 0.36s cubic-bezier(0.25, 1, 0.5, 1);
-  padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px)
-           env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
-}
-
-#lock-overlay.lock-overlay--unlocking {
-  opacity: 0;
-  pointer-events: none;
-}
-
-#lock-inner {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0;
-  width: 100%;
-  max-width: 320px;
-  padding: 0 24px;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-/* ── Title ─────────────────────────────────────────────────── */
-#lock-title {
-  font-size: 20px;
-  font-weight: 600;
-  color: #fff;
-  letter-spacing: -0.3px;
-  margin-bottom: 28px;
-  text-align: center;
-}
-
-/* ── PIN dots ──────────────────────────────────────────────── */
-#lock-dots {
-  display: flex;
-  gap: 20px;
-  margin-bottom: 16px;
-}
-
-.lock-dot {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.55);
-  background: transparent;
-  transition: background 0.15s ease, border-color 0.15s ease;
-}
-
-.lock-dot--filled {
-  background: #fff;
-  border-color: #fff;
-}
-
-/* Shake animation for wrong PIN */
-@keyframes lock-shake {
-  0%   { transform: translateX(0); }
-  20%  { transform: translateX(-8px); }
-  40%  { transform: translateX(8px); }
-  60%  { transform: translateX(-5px); }
-  80%  { transform: translateX(5px); }
-  100% { transform: translateX(0); }
-}
-.lock-shake { animation: lock-shake 0.42s cubic-bezier(0.25, 1, 0.5, 1); }
-
-/* ── Error text ────────────────────────────────────────────── */
-#lock-error {
-  font-size: 14px;
-  font-weight: 500;
-  color: rgba(255, 79, 64, 0.9);
-  min-height: 20px;
-  text-align: center;
-  margin-bottom: 28px;
-}
-
-/* ── Keypad ────────────────────────────────────────────────── */
-#lock-keypad {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 14px;
-  width: 100%;
-  max-width: 280px;
-  margin-bottom: 32px;
-}
-
-.lk-key {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1px;
-  width: 76px;
-  height: 76px;
-  border-radius: 50%;
-  border: none;
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  transition: background 0.1s ease, transform 0.08s ease;
-  justify-self: center;
-}
-
-.lk-key:active {
-  background: rgba(255, 255, 255, 0.32);
-  transform: scale(0.92);
-}
-
-.lk-key--empty {
-  background: transparent;
-  pointer-events: none;
-}
-
-.lk-key--del {
-  background: transparent;
-}
-
-.lk-num {
-  font-size: 26px;
-  font-weight: 300;
-  line-height: 1;
-  letter-spacing: -0.5px;
-}
-
-.lk-sub {
-  font-size: 9px;
-  font-weight: 600;
-  letter-spacing: 1.5px;
-  color: rgba(255, 255, 255, 0.55);
-}
-
-/* ── Change Passcode link ──────────────────────────────────── */
-#lk-change-pin {
-  background: transparent;
-  border: none;
-  color: rgba(255, 255, 255, 0.45);
-  font-family: inherit;
-  font-size: 15px;
-  font-weight: 500;
-  cursor: pointer;
-  padding: 8px 16px;
-  border-radius: 8px;
-  transition: color 0.15s ease;
-  -webkit-tap-highlight-color: transparent;
-}
-
-#lk-change-pin:active { color: rgba(255, 255, 255, 0.85); }
