@@ -612,6 +612,7 @@ body {
 }
 .b-input::placeholder { color: rgba(255,255,255,0.2); }
 .b-input:focus        { border-color: rgba(255,255,255,0.28); }
+input[type=date].b-input { text-align: left; }
 
 /* Hide number input spinners */
 input[type=number]::-webkit-inner-spin-button,

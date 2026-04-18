@@ -96,17 +96,35 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }
 
-  // Migration: if paycheck mode and no payday stored, the periodEnd IS the
-  // raw payday — subtract one day to make it the last day of the period.
+  /*
+    Migration: convert old periodMode ('month' / 'paycheck') to new
+    paydayMode ('fixed' / 'lastWeekday') + paydayDay (1–28).
+    - 'month'    → fixed day 1
+    - 'paycheck' → fixed day derived from stored payday date
+    Old 'payday' / 'periodEnd' date strings are removed after migration.
+  */
   function migrateState() {
     const s = state.settings;
-    if (s.periodMode === 'paycheck' && s.periodEnd && !s.payday) {
-      s.payday    = s.periodEnd;
-      const d     = parseISO(s.periodEnd);
-      d.setDate(d.getDate() - 1);
-      s.periodEnd = toISO(d);
-      saveState();
+
+    // Already migrated
+    if (s.paydayMode) return;
+
+    if (s.periodMode === 'month' || !s.periodMode) {
+      s.paydayMode = 'fixed';
+      s.paydayDay  = 1;
+    } else if (s.periodMode === 'paycheck') {
+      s.paydayMode = 'fixed';
+      // Derive day from stored payday date string
+      const dateStr = s.payday || s.periodEnd;
+      s.paydayDay   = dateStr ? parseISO(dateStr).getDate() : 1;
+      // Cap at 28 to avoid month-length edge cases
+      if (s.paydayDay > 28) s.paydayDay = 28;
     }
+
+    // Clean up old fields
+    delete s.periodMode;
+    delete s.payday;
+    saveState();
   }
 
 
@@ -142,6 +160,26 @@
     return (CATEGORIES.find(c => c.name === name) || {}).color || '#8E8E93';
   }
 
+  // Last Mon–Fri of a given month/year
+  function lastWeekdayOfMonth(y, m) {
+    const d = new Date(y, m + 1, 0); // last day of month
+    const dow = d.getDay(); // 0=Sun, 6=Sat
+    if (dow === 0) d.setDate(d.getDate() - 2); // Sun → Fri
+    if (dow === 6) d.setDate(d.getDate() - 1); // Sat → Fri
+    return d;
+  }
+
+  // Payday date for a given month/year based on current settings
+  function paydayForMonth(y, m) {
+    const s = state.settings;
+    if (s.paydayMode === 'lastWeekday') {
+      return lastWeekdayOfMonth(y, m);
+    }
+    // Fixed day — clamp to actual days in month
+    const day = Math.min(s.paydayDay || 1, new Date(y, m + 1, 0).getDate());
+    return new Date(y, m, day);
+  }
+
   // Is the calendar view showing the current live month?
   function isViewingCurrentMonth() {
     const now = new Date();
@@ -163,7 +201,7 @@
   function checkRollover() {
     if (!state.settings.isSetup) return;
     const today = todayISO();
-    const { periodEnd, periodMode } = state.settings;
+    const { periodEnd } = state.settings;
     if (!periodEnd || today <= periodEnd) return;
 
     // Archive the completed period — kept for history/reference, never mutated
@@ -177,8 +215,8 @@
     // Clear income adjustments — they belong to the archived period only
     state.incomeAdjustments = [];
 
-    // Advance period dates — new period starts fresh with no carry-over
-    initPeriod();
+    // Advance period dates — new period starts from the payday
+    initPeriod(true);
 
     // Require the user to confirm income for the new period
     state.settings.isSetup         = false;
@@ -188,16 +226,34 @@
     saveState();
   }
 
-  function initPeriod() {
+  function initPeriod(fromStart) {
     const today = new Date();
-    if (state.settings.periodMode === 'month') {
-      const y = today.getFullYear(), m = today.getMonth();
-      state.settings.periodStart = toISO(new Date(y, m, 1));
-      state.settings.periodEnd   = toISO(new Date(y, m + 1, 0));
+    today.setHours(0, 0, 0, 0);
+    const y = today.getFullYear(), m = today.getMonth();
+    const paydayThisMonth = paydayForMonth(y, m);
+
+    if (fromStart) {
+      // Use this month's payday if it's today or in the past,
+      // otherwise use last month's payday (period already started)
+      if (paydayThisMonth <= today) {
+        state.settings.periodStart = toISO(paydayThisMonth);
+      } else {
+        const prevM = m === 0 ? 11 : m - 1;
+        const prevY = m === 0 ? y - 1 : y;
+        state.settings.periodStart = toISO(paydayForMonth(prevY, prevM));
+      }
     } else {
       state.settings.periodStart = todayISO();
-      // periodEnd (payday) kept as set by the user
     }
+
+    // Period ends the day before next payday
+    // Next payday = this month's if it's still future, else next month's
+    const nextPayday = paydayThisMonth > today
+      ? paydayThisMonth
+      : paydayForMonth(m === 11 ? y + 1 : y, m === 11 ? 0 : m + 1);
+    const periodEndDate = new Date(nextPayday);
+    periodEndDate.setDate(periodEndDate.getDate() - 1);
+    state.settings.periodEnd = toISO(periodEndDate);
   }
 
 
@@ -283,9 +339,9 @@
     const income = snapshot ? snapshot.disposableIncome : state.settings.disposableIncome;
     const adjs   = snapshot ? snapshot.incomeAdjustments : state.incomeAdjustments;
 
-    // Use the snapshot's actual period bounds if available, else full month
-    const start = snapshot ? snapshot.periodStart : monthStart;
-    const end   = snapshot ? snapshot.periodEnd   : monthEnd;
+    // Use the snapshot's actual period bounds if available, else live period bounds
+    const start = snapshot ? snapshot.periodStart : (state.settings.periodStart || monthStart);
+    const end   = snapshot ? snapshot.periodEnd   : (state.settings.periodEnd   || monthEnd);
 
     const days      = buildDayList(start, end);
     const totalDays = days.length;
@@ -363,20 +419,22 @@
   /* ── 7. SETUP PANEL HELPERS ───────────────────────────────── */
 
   function openSetup() {
-    const panel   = document.getElementById('b-setup-panel');
-    const toggle  = document.getElementById('b-setup-toggle');
-    const endWrap = document.getElementById('b-enddate-wrap');
+    const panel  = document.getElementById('b-setup-panel');
+    const toggle = document.getElementById('b-setup-toggle');
     if (!panel || !toggle) return;
 
-    const incomeEl = document.getElementById('b-income');
-    const modeEl   = document.getElementById('b-mode');
-    const endEl    = document.getElementById('b-enddate');
+    const incomeEl  = document.getElementById('b-income');
+    const modeEl    = document.getElementById('b-mode');
+    const dayEl     = document.getElementById('b-payday-day');
+    const dayWrap   = document.getElementById('b-payday-day-wrap');
 
     if (incomeEl) incomeEl.value = state.settings.disposableIncome || '';
-    if (modeEl)   modeEl.value  = state.settings.periodMode       || 'month';
-    if (endEl)    endEl.value   = state.settings.payday || state.settings.periodEnd || '';
-    endWrap?.classList.toggle('b-hidden', state.settings.periodMode !== 'paycheck');
+    if (modeEl)   modeEl.value  = state.settings.paydayMode || 'fixed';
+    if (dayEl)    dayEl.value   = state.settings.paydayDay  || '';
+    dayWrap?.classList.toggle('b-hidden', (state.settings.paydayMode || 'fixed') !== 'fixed');
 
+    document.getElementById('b-start-choice')?.classList.add('b-hidden');
+    document.getElementById('b-save-actions')?.classList.remove('b-hidden');
     panel.classList.remove('b-hidden');
     toggle.textContent = 'Done';
     setTimeout(() => incomeEl?.focus(), 50);
@@ -487,19 +545,24 @@
                  min="0" step="0.01" placeholder="£0.00">
         </div>
         <div class="b-field">
-          <span class="b-field-lbl">Period Mode</span>
+          <span class="b-field-lbl">Payday</span>
           <select class="b-input" id="b-mode">
-            <option value="month">Calendar Month</option>
-            <option value="paycheck">Paycheck Cycle</option>
+            <option value="fixed">Fixed date</option>
+            <option value="lastWeekday">Last weekday</option>
           </select>
         </div>
       </div>
-      <div class="b-field b-hidden" id="b-enddate-wrap">
-        <span class="b-field-lbl">Payday</span>
-        <input type="date" class="b-input" id="b-enddate">
+      <div class="b-field b-hidden" id="b-payday-day-wrap">
+        <span class="b-field-lbl">Day of month (1–28)</span>
+        <input type="number" class="b-input" id="b-payday-day"
+               min="1" max="28" placeholder="e.g. 27">
       </div>
-      <div class="b-setup-actions">
-        <button class="b-btn-primary" id="b-save-setup">Save Settings</button>
+      <div class="b-setup-actions b-hidden" id="b-start-choice">
+        <button class="b-btn-primary" id="b-from-start" style="flex:1"><span id="b-period-start-label">From Start</span></button>
+        <button class="b-btn-ghost"   id="b-from-today" style="flex:1">From Today</button>
+      </div>
+      <div class="b-setup-actions" id="b-save-actions">
+        <button class="b-btn-primary" id="b-save-setup">Save</button>
         <button class="b-btn-ghost"   id="b-cancel-setup">Cancel</button>
       </div>
       <div class="b-income-section">
@@ -619,13 +682,11 @@
       return;
     }
 
-    const { disposableIncome, periodMode, periodStart, periodEnd } = state.settings;
+    const { disposableIncome, periodStart, periodEnd } = state.settings;
     const daysLeft = computed.days
       .filter(d => d.status === 'today' || d.status === 'future').length;
 
-    const periodStr = periodMode === 'month'
-      ? `${MONTH_NAMES[parseISO(periodStart).getMonth()]} ${parseISO(periodStart).getFullYear()}`
-      : `${shortDate(parseISO(periodStart))} – ${shortDate(parseISO(periodEnd))}`;
+    const periodStr = `${shortDate(parseISO(periodStart))} – ${shortDate(parseISO(periodEnd))}`;
 
     const remainingDisplay = computed.totalRemaining < 0
       ? `<span style="color:#FF4F40">−£${Math.abs(computed.totalRemaining).toFixed(2)}</span>`
@@ -844,15 +905,15 @@
     for (const d of viewData.days) dayMap[d.date] = d;
 
     const isSetup = state.settings.isSetup;
-    const { periodMode, periodEnd } = state.settings;
 
     // Label
     if (!isSetup) {
       labelEl.innerHTML =
         `${MONTH_NAMES[m]} ${y} <span class="b-cal-unset">· set up to activate</span>`;
-    } else if (isCurrent && periodMode === 'paycheck' && periodEnd) {
+    } else if (isCurrent) {
+      const payday = paydayForMonth(y, m);
       labelEl.innerHTML =
-        `${MONTH_NAMES[m]} ${y} <span class="b-cal-unset">· payday ${shortDate(parseISO(state.settings.payday || periodEnd))}</span>`;
+        `${MONTH_NAMES[m]} ${y} <span class="b-cal-unset">· payday ${shortDate(payday)}</span>`;
     } else {
       labelEl.textContent = `${MONTH_NAMES[m]} ${y}`;
     }
@@ -1082,30 +1143,46 @@ ${extraLine}
   /* ── 10. MUTATION FUNCTIONS ───────────────────────────────── */
 
   function saveSettings() {
-    const incomeEl = document.getElementById('b-income');
-    const modeEl   = document.getElementById('b-mode');
-    const endEl    = document.getElementById('b-enddate');
+    const incomeEl  = document.getElementById('b-income');
+    const modeEl    = document.getElementById('b-mode');
+    const dayEl     = document.getElementById('b-payday-day');
 
-    const income  = parseFloat(incomeEl?.value);
-    const mode    = modeEl?.value || 'month';
-    const endDate = endEl?.value  || '';
+    const income     = parseFloat(incomeEl?.value);
+    const paydayMode = modeEl?.value || 'fixed';
+    const paydayDay  = paydayMode === 'fixed' ? parseInt(dayEl?.value) : null;
 
-    if (isNaN(income) || income <= 0) { flashInput(incomeEl); return; }
-    if (mode === 'paycheck' && !endDate) { flashInput(endEl); return; }
-
-    state.settings.disposableIncome = income;
-    state.settings.periodMode       = mode;
-    if (mode === 'paycheck') {
-      state.settings.payday    = endDate; // the actual payday date (display only)
-      const d = parseISO(endDate);
-      d.setDate(d.getDate() - 1);
-      state.settings.periodEnd = toISO(d); // day before payday = last day of period
+    if (isNaN(income) || income <= 0)                         { flashInput(incomeEl); return; }
+    if (paydayMode === 'fixed' && (isNaN(paydayDay) || paydayDay < 1 || paydayDay > 28)) {
+      flashInput(dayEl); return;
     }
 
+    state.settings.disposableIncome = income;
+    state.settings.paydayMode       = paydayMode;
+    if (paydayMode === 'fixed') state.settings.paydayDay = paydayDay;
+
+    // Always show the From Start / From Today choice so the user
+    // can decide whether to backdate to period start or start fresh today.
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const y = today.getFullYear(), mon = today.getMonth();
+    const paydayThis = paydayForMonth(y, mon);
+    // The period start date that "From Start" would use
+    const periodStartDate = paydayThis <= today
+      ? paydayThis
+      : paydayForMonth(mon === 0 ? y - 1 : y, mon === 0 ? 11 : mon - 1);
+    const startLabel = `From ${shortDate(periodStartDate)}`;
+    document.getElementById('b-period-start-label').textContent = startLabel;
+    document.getElementById('b-start-choice')?.classList.remove('b-hidden');
+    document.getElementById('b-save-actions')?.classList.add('b-hidden');
+  }
+
+  function applySettings(fromStart) {
     state.settings.isSetup = true;
-    initPeriod();
+    initPeriod(fromStart);
     saveState();
     computeAll();
+    document.getElementById('b-start-choice')?.classList.add('b-hidden');
+    document.getElementById('b-save-actions')?.classList.remove('b-hidden');
     render();
     closeSetup();
   }
@@ -1232,10 +1309,14 @@ ${extraLine}
       saveRollover(state.settings.pendingRollover?.prevIncome || 0);
     });
 
-    document.getElementById('b-mode')?.addEventListener('change', e =>
-      document.getElementById('b-enddate-wrap')
-        ?.classList.toggle('b-hidden', e.target.value !== 'paycheck')
-    );
+    document.getElementById('b-mode')?.addEventListener('change', e => {
+      const isFixed = e.target.value === 'fixed';
+      document.getElementById('b-payday-day-wrap')?.classList.toggle('b-hidden', !isFixed);
+      document.getElementById('b-start-choice')?.classList.add('b-hidden');
+    });
+
+    document.getElementById('b-from-today')?.addEventListener('click', () => applySettings(false));
+    document.getElementById('b-from-start')?.addEventListener('click', () => applySettings(true));
 
     // Add Income toggle
     document.getElementById('b-income-toggle')?.addEventListener('click', () => {
@@ -1448,16 +1529,11 @@ ${extraLine}
 
   /* ── 12. BOOT ─────────────────────────────────────────────── */
 
+  // Migrate old periodMode settings before anything else runs
+  migrateState();
+
   // Auto-rollover: if the saved period has ended, snapshot it and advance
   checkRollover();
-
-  // For month mode, always sync periodStart/End to current month
-  if (state.settings.isSetup && state.settings.periodMode === 'month') {
-    initPeriod();
-    saveState();
-  }
-
-  migrateState();
   computeAll();
   container.innerHTML = buildSkeleton();
   render();
