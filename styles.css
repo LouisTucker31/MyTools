@@ -188,7 +188,8 @@ body {
 .page {
   flex: 0 0 100vw;
   width: 100vw;
-  height: 100%;
+  height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
   padding-top:    max(84px, calc(env(safe-area-inset-top, 0px) + 84px));
@@ -369,9 +370,12 @@ body {
   border-radius: 0;
   padding: 0;
   box-shadow: none;
-  overflow: hidden;
+  overflow: visible;
   display: flex;
   flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
 }
 .card--budget::before,
 .card--bills::before,
@@ -389,6 +393,7 @@ body {
 #card-content-debts {
   flex: 1;
   min-height: 0;
+  height: 100%;
   overflow-y: scroll;
   overflow-x: hidden;
   -webkit-overflow-scrolling: touch;
