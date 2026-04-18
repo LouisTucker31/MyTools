@@ -279,7 +279,7 @@ body {
   right: 0;
   height: calc(env(safe-area-inset-bottom, 0px) + 60px);
   z-index: 150;
-  background: linear-gradient(to bottom, transparent 0%, var(--footer-bg, #0a2e14) 100%);
+  background: linear-gradient(to top, transparent 0%, var(--footer-bg, #0a2e14) 100%);
   pointer-events: none;
 }
 
