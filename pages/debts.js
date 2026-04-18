@@ -204,7 +204,7 @@
   const DT_SECTIONS = [
     { type: 'credit',   label: 'My Credit Cards' },
     { type: 'loan',     label: 'My Loans' },
-    { type: 'borrowed', label: 'My Borrowed' },
+    { type: 'borrowed', label: 'Money Borrowed' },
     { type: 'other',    label: 'Other' },
   ];
 
@@ -241,10 +241,10 @@
       row.addEventListener('click', e => {
         const id     = row.dataset.id;
         const action = e.target.closest('[data-action]')?.dataset.action;
-        if (action === 'edit')        editDebt(id);
-        else if (action === 'save')   saveEdit(id);
+        if (action === 'save')        saveEdit(id);
         else if (action === 'cancel') { editingId = null; render(); }
         else if (action === 'delete') deleteDebt(id);
+        else if (!row.classList.contains('sv-row--editing')) editDebt(id);
       });
     });
   }
@@ -276,7 +276,7 @@
       ${payoff ? `<span class="sv-meta-item sv-meta-goal">${payoff}</span>` : ''}
     </div>
   </div>
-  <button class="bl-edit-btn" data-action="edit" aria-label="Edit">›</button>
+  <span class="bl-edit-btn" aria-hidden="true">›</span>
 </div>`;
   }
 

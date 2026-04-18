@@ -463,7 +463,7 @@
   <div class="b-module b-area-setup">
     <div class="b-setup-bar">
       <span class="b-setup-text" id="b-setup-text">Loading…</span>
-      <button class="b-btn-ghost" id="b-setup-toggle">Edit</button>
+      <button class="b-btn-ghost" id="b-setup-toggle">Set Up</button>
     </div>
 
     <!-- Rollover prompt — shown instead of full setup when a period just ended -->
@@ -482,7 +482,7 @@
     <div class="b-setup-panel b-hidden" id="b-setup-panel">
       <div class="b-two-col">
         <div class="b-field">
-          <span class="b-field-lbl">Disposable Income</span>
+          <span class="b-field-lbl">Budget Amount</span>
           <input type="number" class="b-input" id="b-income"
                  min="0" step="0.01" placeholder="£0.00">
         </div>
@@ -534,7 +534,6 @@
         </div>
         <div class="b-field">
           <select class="b-input" id="b-cat">
-            <option value="">Category</option>
             ${catOpts}
           </select>
         </div>
@@ -1441,9 +1440,9 @@ ${extraLine}
 
   function flashInput(el) {
     if (!el) return;
-    el.style.borderColor = 'rgba(255,59,48,0.65)';
+    el.style.outline = '2px solid #FF4F40';
     el.focus();
-    setTimeout(() => { el.style.borderColor = ''; }, 900);
+    setTimeout(() => { el.style.outline = ''; }, 800);
   }
 
 

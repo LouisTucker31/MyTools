@@ -212,7 +212,7 @@
     <div class="bl-day${!past ? ' bl-day--due' : ''}">${dueLabel}</div>
   </div>
   <span class="bl-amt${past ? ' bl-amt--past' : ''}">${fmt(b.amount)}</span>
-  <button class="bl-edit-btn" data-action="edit" aria-label="Edit">›</button>
+  <span class="bl-edit-btn" aria-hidden="true">›</span>
 </div>`;
   }
 
@@ -355,10 +355,10 @@
     const id     = row.dataset.id;
     const action = e.target.closest('[data-action]')?.dataset.action;
 
-    if (action === 'edit')   editBill(id);
-    else if (action === 'save')   saveEdit(id);
+    if (action === 'save')        saveEdit(id);
     else if (action === 'cancel') { editingId = null; renderList(); }
     else if (action === 'delete') deleteBill(id);
+    else if (!row.classList.contains('bl-row--editing')) editBill(id);
   });
 
 

@@ -249,10 +249,10 @@
       row.addEventListener('click', e => {
         const id     = row.dataset.id;
         const action = e.target.closest('[data-action]')?.dataset.action;
-        if (action === 'edit')        editPot(id);
-        else if (action === 'save')   saveEdit(id);
+        if (action === 'save')        saveEdit(id);
         else if (action === 'cancel') { editingId = null; render(); }
         else if (action === 'delete') deletePot(id);
+        else if (!row.classList.contains('sv-row--editing')) editPot(id);
       });
     });
   }
@@ -288,7 +288,7 @@
       ${projection ? `<span class="sv-meta-item sv-meta-goal">${projection}</span>` : ''}
     </div>
   </div>
-  <button class="bl-edit-btn" data-action="edit" aria-label="Edit">›</button>
+  <span class="bl-edit-btn" aria-hidden="true">›</span>
 </div>`;
   }
 
