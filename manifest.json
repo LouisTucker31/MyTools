@@ -1,6 +1,6 @@
 {
-  "name": "MyTools",
-  "short_name": "MyTools",
+  "name": "MyMoney",
+  "short_name": "MyMoney",
   "description": "Personal finance and productivity tools",
   "start_url": "/MyTools/",
   "scope": "/MyTools/",

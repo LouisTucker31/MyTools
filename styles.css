@@ -3,6 +3,20 @@
    Mobile-first, Apple Sports inspired
    ============================================================ */
 
+/* --- Orientation lock (touch devices only) ---------------- */
+@media (hover: none) and (pointer: coarse) and (orientation: landscape) {
+  html {
+    transform: rotate(-90deg);
+    transform-origin: left top;
+    width: 100vh;
+    height: 100vw;
+    overflow: hidden;
+    position: fixed;
+    top: 100%;
+    left: 0;
+  }
+}
+
 /* --- Reset & Base ----------------------------------------- */
 *, *::before, *::after {
   box-sizing: border-box;
@@ -507,8 +521,8 @@ body {
 .b-setup-text strong { font-weight: 600; color: #fff; }
 .b-setup-extra       { font-size: 13px; font-weight: 500; color: rgba(52,199,89,0.75); }
 
-.b-setup-panel  { margin-top: 16px; display: grid; gap: 16px; }
-.b-two-col      { display: grid; grid-template-columns: 1fr; gap: 16px; }
+.b-setup-panel  { margin-top: 16px; display: grid; gap: 12px; }
+.b-two-col      { display: grid; grid-template-columns: 1fr; gap: 12px; }
 .b-field        { display: flex; flex-direction: column; gap: 8px; }
 
 @media (min-width: 480px) {
@@ -668,12 +682,11 @@ option { background: #0f2418; color: #fff; }
   display: grid;
   grid-template-columns: 1fr;
   gap: 12px;
-  margin-bottom: 0;
 }
 @media (min-width: 480px) {
   .b-entry-fields { grid-template-columns: 1fr 1fr; }
 }
-.b-entry-note { margin-bottom: 12px; }
+.b-entry-note { margin-bottom: 0; }
 
 
 /* ── Today's transaction list ───────────────────────────────── */
