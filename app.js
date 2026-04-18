@@ -395,11 +395,13 @@ function onPointerMove(e) {
 
   const dx = e.clientX - startX;
   const dy = e.clientY - startY;
+  const adx = Math.abs(dx), ady = Math.abs(dy);
 
-  // On first significant move, determine if this is a horizontal or
-  // vertical gesture, then lock in for the rest of this drag.
-  if (isHorizontalSwipe === null && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) {
-    isHorizontalSwipe = Math.abs(dx) > Math.abs(dy);
+  // Wait for enough movement, then require dx to clearly dominate
+  // (1.8× ratio) before locking as horizontal — prevents diagonal
+  // swipes from triggering page changes while also scrolling.
+  if (isHorizontalSwipe === null && (adx > 6 || ady > 6)) {
+    isHorizontalSwipe = adx > ady * 1.8;
   }
 
   // Vertical gesture — release carousel capture so the content area
@@ -410,8 +412,11 @@ function onPointerMove(e) {
     return;
   }
 
+  // Still deciding — don't move the strip yet
+  if (isHorizontalSwipe === null) return;
+
   // Prevent vertical scroll while swiping horizontally
-  if (isHorizontalSwipe) e.preventDefault();
+  e.preventDefault();
 
   // Velocity tracking (for flick detection on release)
   const dt = e.timeStamp - lastTime;
