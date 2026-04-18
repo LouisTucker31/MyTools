@@ -1,6 +1,6 @@
 /* ============================================================
    BILLS TOOL — pages/bills.js
-   Monthly bill tracker with dates, amounts, tick-off, totals
+   Monthly bill tracker with dates, amounts, auto-grey, totals
    ============================================================ */
 
 (function () {
@@ -43,15 +43,6 @@
     return '£' + Math.abs(n).toFixed(2);
   }
 
-  function todayDay() {
-    return new Date().getDate(); // day of month 1–31
-  }
-
-  // A bill is "due" if its day <= today's day of month
-  function isDue(bill) {
-    return bill.day <= todayDay();
-  }
-
   // Sort bills by day of month
   function sortedBills() {
     return [...state.bills].sort((a, b) => a.day - b.day);
@@ -61,6 +52,72 @@
     if (!el) return;
     el.style.outline = '2px solid #FF4F40';
     setTimeout(() => el.style.outline = '', 800);
+  }
+
+  function ordinal(n) {
+    const s = ['th','st','nd','rd'];
+    const v = n % 100;
+    return n + (s[(v-20)%10] || s[v] || s[0]);
+  }
+
+  /*
+    Read the payday day-of-month from the budget tool's saved state.
+    Returns a number 1–31, defaulting to 1 if not configured or month mode.
+  */
+  function getPaydayOfMonth() {
+    try {
+      const raw = localStorage.getItem('budget_v1');
+      if (!raw) return 1;
+      const budget = JSON.parse(raw);
+      const { periodMode, payday, periodEnd } = budget.settings || {};
+      if (periodMode !== 'paycheck') return 1;
+      // payday is stored as ISO date string e.g. "2026-04-30"
+      const dateStr = payday || periodEnd;
+      if (!dateStr) return 1;
+      return new Date(dateStr + 'T12:00:00').getDate();
+    } catch { return 1; }
+  }
+
+  /*
+    Determine if a bill is "past" in the current pay cycle.
+
+    The pay cycle starts on paydayOfMonth (P) each month.
+    Bills are ordered by their day within that cycle:
+      - Bills with day >= P: they fall in the first part of the cycle (same calendar month as payday)
+      - Bills with day < P:  they fall in the second part (next calendar month after payday)
+
+    Today's position in the cycle:
+      - If today >= P: we're in the first part — bills with day >= P and day <= today are past
+      - If today < P:  we're in the second part (post-payday of prev month) — bills with day >= P
+                       from last month are past, AND bills with day < P and day <= today are past
+
+    Simplified: a bill is past if today has reached or passed its day within the current cycle.
+    "Current cycle" means: since the most recent payday.
+
+    Most recent payday = this month's day P if today >= P, else last month's day P.
+
+    A bill on day D is past if the bill's date in the current cycle <= today.
+      - If today >= P: bill cycle date is this month's D. Past if D <= today AND D >= P.
+                       Also, bills from D < P already fired this cycle (last month), so also past.
+      - If today < P:  we're mid-cycle (after last month's payday). Bills from last cycle's
+                       first half (D >= P, fired last month) are past. Bills in the second half
+                       with D < P are past if D <= today.
+  */
+  function isPast(bill) {
+    const today = new Date().getDate();
+    const P = getPaydayOfMonth();
+    const D = bill.day;
+
+    if (today >= P) {
+      // We're in the first half of the cycle (on or after payday this month).
+      // Bills due >= P and <= today are past. Bills due < P fired last cycle — also past.
+      return D <= today;
+    } else {
+      // We're in the second half (after last month's payday, before this month's).
+      // Bills due >= P fired last month — past.
+      // Bills due < P and <= today — past.
+      return D >= P || D <= today;
+    }
   }
 
 
@@ -97,8 +154,8 @@
     <div id="bl-list"></div>
   </div>
 
-  <!-- Totals -->
-  <div class="b-module bl-area-totals" id="bl-totals"></div>
+  <!-- Totals: 3 bare stat tiles, no wrapper module -->
+  <div class="bl-area-totals" id="bl-totals"></div>
 
 </div>`;
 
@@ -126,19 +183,16 @@
   }
 
   function buildRow(b) {
-    const due      = isDue(b);
-    const checked  = b.paid;
+    const past     = isPast(b);
     const dayLabel = ordinal(b.day);
+    const dueLabel = !past ? `Due · ${dayLabel}` : dayLabel;
     return `
-<div class="bl-row${checked ? ' bl-row--paid' : ''}" data-id="${b.id}">
-  <button class="bl-tick${checked ? ' bl-tick--checked' : ''}" data-action="tick" aria-label="Mark paid">
-    ${checked ? `<svg viewBox="0 0 20 20" fill="none"><polyline points="4,10 8,14 16,6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>` : ''}
-  </button>
+<div class="bl-row${past ? ' bl-row--past' : ''}" data-id="${b.id}">
   <div class="bl-info">
-    <div class="bl-name${checked ? ' bl-name--paid' : ''}">${b.name}</div>
-    <div class="bl-day${due && !checked ? ' bl-day--due' : ''}">${due && !checked ? `Due · ${dayLabel}` : dayLabel}</div>
+    <div class="bl-name${past ? ' bl-name--past' : ''}">${b.name}</div>
+    <div class="bl-day${!past ? ' bl-day--due' : ''}">${dueLabel}</div>
   </div>
-  <span class="bl-amt${checked ? ' bl-amt--paid' : ''}">${fmt(b.amount)}</span>
+  <span class="bl-amt${past ? ' bl-amt--past' : ''}">${fmt(b.amount)}</span>
   <button class="bl-edit-btn" data-action="edit" aria-label="Edit">›</button>
 </div>`;
   }
@@ -165,10 +219,10 @@
     const el = document.getElementById('bl-totals');
     if (!el) return;
 
-    const bills      = sortedBills();
-    const total      = bills.reduce((s, b) => s + b.amount, 0);
-    const paid       = bills.filter(b => b.paid).reduce((s, b) => s + b.amount, 0);
-    const remaining  = total - paid;
+    const bills     = sortedBills();
+    const total     = bills.reduce((s, b) => s + b.amount, 0);
+    const paid      = bills.filter(b => isPast(b)).reduce((s, b) => s + b.amount, 0);
+    const remaining = total - paid;
 
     if (!bills.length) { el.innerHTML = ''; return; }
 
@@ -180,19 +234,13 @@
   </div>
   <div class="b-stat ${paid > 0 ? 'b-stat--pos-outline' : ''}">
     <span class="b-stat-val" style="color:${paid > 0 ? '#4FC3F7' : ''}">${fmt(paid)}</span>
-    <span class="b-stat-lbl">Paid<br>So Far</span>
+    <span class="b-stat-lbl">Gone<br>Out</span>
   </div>
   <div class="b-stat ${remaining > 0 ? 'b-stat--neg-outline' : ''}">
     <span class="b-stat-val" style="color:${remaining > 0 ? '#FF4F40' : ''}">${fmt(remaining)}</span>
-    <span class="b-stat-lbl">Still<br>To Pay</span>
+    <span class="b-stat-lbl">Still<br>To Come</span>
   </div>
 </div>`;
-  }
-
-  function ordinal(n) {
-    const s = ['th','st','nd','rd'];
-    const v = n % 100;
-    return n + (s[(v-20)%10] || s[v] || s[0]);
   }
 
 
@@ -222,21 +270,13 @@
     const amount = parseFloat(amtEl?.value);
     const day    = parseInt(dayEl?.value);
 
-    if (!name)                         { flashInput(nameEl); return; }
-    if (isNaN(amount) || amount <= 0)  { flashInput(amtEl);  return; }
+    if (!name)                           { flashInput(nameEl); return; }
+    if (isNaN(amount) || amount <= 0)    { flashInput(amtEl);  return; }
     if (isNaN(day) || day < 1 || day > 31) { flashInput(dayEl); return; }
 
-    state.bills.push({ id: uuid(), name, amount, day, paid: false });
+    state.bills.push({ id: uuid(), name, amount, day });
     saveState();
     closeAdd();
-    render();
-  }
-
-  function tickBill(id) {
-    const b = state.bills.find(b => b.id === id);
-    if (!b) return;
-    b.paid = !b.paid;
-    saveState();
     render();
   }
 
@@ -298,8 +338,7 @@
     const id     = row.dataset.id;
     const action = e.target.closest('[data-action]')?.dataset.action;
 
-    if (action === 'tick')   tickBill(id);
-    else if (action === 'edit')   editBill(id);
+    if (action === 'edit')   editBill(id);
     else if (action === 'save')   saveEdit(id);
     else if (action === 'cancel') { editingId = null; renderList(); }
     else if (action === 'delete') deleteBill(id);
@@ -307,15 +346,6 @@
 
 
   /* ── 8. BOOT ──────────────────────────────────────────────── */
-
-  // Auto-reset paid status on new month
-  const now       = new Date();
-  const resetKey  = `bills_reset_${now.getFullYear()}_${now.getMonth()}`;
-  if (!localStorage.getItem(resetKey)) {
-    state.bills.forEach(b => b.paid = false);
-    saveState();
-    localStorage.setItem(resetKey, '1');
-  }
 
   render();
 

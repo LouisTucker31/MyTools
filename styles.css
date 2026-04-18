@@ -394,6 +394,37 @@ body {
 .card--budget::before { display: none; }
 .card--budget .card-title { display: none; }
 
+/* Bills page — same transparent shell as budget */
+.card--bills {
+  background: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  box-shadow: none;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.card--bills::before { display: none; }
+.card--bills .card-title { display: none; }
+
+#card-content-bills {
+  flex: 1;
+  min-height: 0;
+  overflow-y: scroll;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  display: block;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+#card-content-bills::-webkit-scrollbar { display: none; }
+
+.bl-root     { min-width: 0; max-width: 100%; }
+.bl-root *   { min-width: 0; }
+
 .card--placeholder {
   padding-bottom: max(72px, calc(env(safe-area-inset-bottom, 0px) + 72px));
 }
@@ -1101,16 +1132,30 @@ option { background: #0f2418; color: #fff; }
    BILLS PAGE — bl-* classes
    ============================================================ */
 
-/* Root layout */
+/* Root grid — matches .b-root */
 .bl-root {
-  display: flex;
-  flex-direction: column;
+  display: grid;
   gap: 16px;
+  padding-bottom: 8px;
+  align-content: start;
+  min-width: 0;
+  max-width: 100%;
 }
+.bl-root * { min-width: 0; }
 
-/* Bill list area */
-.bl-area-list { display: flex; flex-direction: column; }
-.bl-area-totals { }
+/* Desktop: add+totals stacked left, bill list right */
+@media (min-width: 680px) {
+  .bl-root {
+    grid-template-columns: 1fr 1fr;
+    grid-template-areas:
+      "add  list"
+      "totals list";
+    align-items: start;
+  }
+  .bl-area-add    { grid-area: add; }
+  .bl-area-list   { grid-area: list; grid-row: 1 / 3; }
+  .bl-area-totals { grid-area: totals; }
+}
 
 /* ── Bill rows ───────────────────────────────────────────── */
 .bl-row {
@@ -1119,10 +1164,11 @@ option { background: #0f2418; color: #fff; }
   gap: 12px;
   padding: 14px 4px;
   border-bottom: 1px solid rgba(255,255,255,0.07);
+  transition: opacity 0.2s;
 }
 .bl-row:last-child { border-bottom: none; }
 
-.bl-row--paid { opacity: 0.5; }
+.bl-row--past { opacity: 0.4; }
 
 .bl-row--editing {
   background: rgba(255,255,255,0.04);
@@ -1130,29 +1176,7 @@ option { background: #0f2418; color: #fff; }
   border-bottom: none;
   padding: 14px 12px;
   margin-bottom: 4px;
-}
-
-/* ── Tick button ─────────────────────────────────────────── */
-.bl-tick {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: 2px solid rgba(79,195,247,0.4);
-  background: transparent;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: #4FC3F7;
-  transition: background 0.15s, border-color 0.15s;
-}
-.bl-tick svg { width: 14px; height: 14px; }
-.bl-tick:active { opacity: 0.7; }
-
-.bl-tick--checked {
-  background: rgba(79,195,247,0.18);
-  border-color: #4FC3F7;
+  opacity: 1;
 }
 
 /* ── Bill info ───────────────────────────────────────────── */
@@ -1172,7 +1196,7 @@ option { background: #0f2418; color: #fff; }
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.bl-name--paid { text-decoration: line-through; color: rgba(255,255,255,0.4); }
+.bl-name--past { text-decoration: line-through; }
 
 .bl-day {
   font-size: 12px;
@@ -1181,7 +1205,7 @@ option { background: #0f2418; color: #fff; }
   letter-spacing: 0.1px;
 }
 .bl-day--due {
-  color: #FF4F40;
+  color: #4FC3F7;
   font-weight: 600;
 }
 
@@ -1193,7 +1217,7 @@ option { background: #0f2418; color: #fff; }
   letter-spacing: -0.3px;
   flex-shrink: 0;
 }
-.bl-amt--paid { color: rgba(255,255,255,0.3); }
+.bl-amt--past { color: rgba(255,255,255,0.5); }
 
 /* ── Edit chevron ────────────────────────────────────────── */
 .bl-edit-btn {
@@ -1217,7 +1241,7 @@ option { background: #0f2418; color: #fff; }
   gap: 12px;
 }
 
-/* Paid So Far: blue outline */
+/* Gone Out: blue outline + value */
 .bl-totals-grid .b-stat:nth-child(2) { border-color: rgba(79,195,247,0.22); }
 .bl-totals-grid .b-stat:nth-child(2) .b-stat-val { color: #4FC3F7; }
 
