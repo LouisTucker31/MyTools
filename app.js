@@ -23,9 +23,15 @@ const pages = [
     pillBg: "rgba(255,255,255,0.18)",
   },
   {
-    id: "placeholder3",
-    title: "Focus",
-    bg: "#2a0a1a",             // ← deep burgundy
+    id: "savings",
+    title: "Savings",
+    bg: "#1a0a2e",             // ← deep purple
+    pillBg: "rgba(255,255,255,0.18)",
+  },
+  {
+    id: "debts",
+    title: "Debts",
+    bg: "#2a0a0a",             // ← deep red
     pillBg: "rgba(255,255,255,0.18)",
   },
 ];
@@ -493,3 +499,8 @@ function init() {
 }
 
 init();
+
+// Lock to portrait-primary (right-way-up only) on touch devices
+if ('screen' in window && 'orientation' in screen && typeof screen.orientation.lock === 'function') {
+  screen.orientation.lock('portrait-primary').catch(() => {});
+}
