@@ -122,9 +122,11 @@ function lerpRgb(a, b, t) {
 /** Apply an [r,g,b] array to the #bg element's background-color */
 function applyBgColour(rgb) {
   const col = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+  // Darkened version matches the rgba(0,0,0,0.25) gradient overlay at the bottom
+  const dark = `rgb(${Math.round(rgb[0]*0.75)},${Math.round(rgb[1]*0.75)},${Math.round(rgb[2]*0.75)})`;
   bg.style.backgroundColor = col;
-  document.body.style.backgroundColor = col;
-  document.documentElement.style.backgroundColor = col;
+  document.body.style.backgroundColor = dark;
+  document.documentElement.style.backgroundColor = dark;
 }
 
 /* ── 6. BACKGROUND INTERPOLATION ───────────────────────────
