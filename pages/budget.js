@@ -847,7 +847,7 @@
     }
 
     if (!state.settings.isSetup) {
-      el.innerHTML = '<div class="b-txn-empty" style="padding:8px 0">Set up your budget to see summary</div>';
+      el.innerHTML = '<div class="b-txn-empty" style="padding:8px 0;text-align:center;width:100%">Set up your budget to see summary</div>';
       return;
     }
 
