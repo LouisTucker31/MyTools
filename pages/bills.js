@@ -224,8 +224,6 @@
     const paid      = bills.filter(b => isPast(b)).reduce((s, b) => s + b.amount, 0);
     const remaining = total - paid;
 
-    if (!bills.length) { el.innerHTML = ''; return; }
-
     el.innerHTML = `
 <div class="bl-totals-grid">
   <div class="b-stat">
