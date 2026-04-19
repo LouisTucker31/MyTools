@@ -10,7 +10,7 @@
    next visit and discard the old cached version.
    ============================================================ */
 
-const CACHE_VERSION = 'mymoney-v55';
+const CACHE_VERSION = 'mymoney-v56';
 
 const CORE_FILES = [
   './',

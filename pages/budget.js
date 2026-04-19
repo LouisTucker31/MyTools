@@ -271,80 +271,89 @@
     for (const adj of state.incomeAdjustments) extraTotal += adj.amount;
     computed.extraIncomeTotal = extraTotal;
     computed.totalIncome      = disposableIncome + extraTotal;
+    const totalIncome         = computed.totalIncome;
 
-    // ── Fixed base: income ÷ total period days ──────────────────
-    const fixedDaily         = totalDays > 0 ? disposableIncome / totalDays : 0;
-    computed.baseDailyBudget = fixedDaily;
-
-    // ── Assign transactions and run the day-by-day chain ────────
-    //
-    // Past days always use the fixed base (what was actually budgeted
-    // each day). For adaptive mode, today's daily allowance is
-    // recalculated as: (totalIncome − spentBeforeToday) ÷ remainingDays.
-
-    // First pass: attach transactions to every day
+    // ── Attach transactions to every day ────────────────────────
     for (const day of days) {
       day.transactions = state.transactions.filter(t => t.date === day.date);
       day.spent        = day.transactions.reduce((s, t) => s + t.amount, 0);
+      day.status       = day.date === today ? 'today' : day.date < today ? 'past' : 'future';
     }
 
-    // Spread income adjustments across future+today days (same as before)
-    const dailyBudgets = days.map(() => fixedDaily);
-    for (const adj of state.incomeAdjustments) {
-      const effectiveDate = adj.date > today ? adj.date : today;
-      const idx           = days.findIndex(d => d.date >= effectiveDate);
-      if (idx === -1) continue;
-      const perDay = adj.amount / (days.length - idx);
-      for (let i = idx; i < days.length; i++) dailyBudgets[i] += perDay;
-    }
+    const pastDays   = days.filter(d => d.status === 'past');
+    const todayEntry = days.find(d => d.status === 'today') || null;
+    const futureDays = days.filter(d => d.status === 'future');
 
-    // Adaptive: override today's allowance
-    if (budgetStyle === 'adaptive') {
-      const todayIdx      = days.findIndex(d => d.date === today);
-      const remainingDays = todayIdx === -1
-        ? days.filter(d => d.date >= today).length
-        : days.length - todayIdx;         // today + future days
-      const spentBefore   = days
-        .filter(d => d.date < today)
-        .reduce((s, d) => s + d.spent, 0);
-      const budgetLeft    = computed.totalIncome - spentBefore;
-      const adaptiveDaily = remainingDays > 0 ? budgetLeft / remainingDays : 0;
-      computed.adaptiveDailyBudget = adaptiveDaily;
-      if (todayIdx !== -1) dailyBudgets[todayIdx] = adaptiveDaily;
-    } else {
-      computed.adaptiveDailyBudget = fixedDaily;
-    }
+    const spentBeforeToday = pastDays.reduce((s, d) => s + d.spent, 0);
+    const spentToday       = todayEntry ? todayEntry.spent : 0;
+    const totalSpent       = spentBeforeToday + spentToday;
 
-    // Second pass: chain carry-over day by day
+    // periodRemaining = totalBudget - totalSpentSoFar (mode-independent, used in setup bar)
+    computed.periodRemaining = totalIncome - totalSpent;
+    computed.totalSpent      = totalSpent;
+
+    // ── Fixed daily ─────────────────────────────────────────────
+    // dailyFixed = totalBudget ÷ totalDaysInPeriod — constant for whole period
+    const fixedDaily         = totalDays > 0 ? totalIncome / totalDays : 0;
+    computed.baseDailyBudget = fixedDaily;
+
+    // Carry chain for past days (same in both modes — history is history)
     let carryIn = 0;
-    for (let i = 0; i < days.length; i++) {
-      const day      = days[i];
-      day.baseBudget = dailyBudgets[i];
+    for (const day of pastDays) {
+      day.baseBudget = fixedDaily;
       day.carryIn    = carryIn;
-      day.available  = dailyBudgets[i] + carryIn;
+      day.available  = fixedDaily + carryIn;
       day.carryOut   = day.available - day.spent;
+      day.status     = day.carryOut >= 0 ? 'past-under' : 'past-over';
+      carryIn        = day.carryOut;
+    }
+    // carryIn now holds the carry arriving into today from yesterday
 
-      if      (day.date === today) day.status = 'today';
-      else if (day.date  < today)  day.status = day.carryOut >= 0 ? 'past-under' : 'past-over';
-      else                         day.status = 'future';
+    if (budgetStyle === 'fixed') {
+      // ── Fixed mode: today uses fixed daily + carry from yesterday ──
+      computed.adaptiveDailyBudget = fixedDaily; // not used but keep consistent
+      if (todayEntry) {
+        todayEntry.baseBudget = fixedDaily;
+        todayEntry.carryIn    = carryIn;           // carry from yesterday
+        todayEntry.available  = fixedDaily + carryIn;
+        todayEntry.carryOut   = todayEntry.available - spentToday;
+      }
+      // totalRemaining for the Remaining tile = today's carry-out
+      computed.totalRemaining = todayEntry ? todayEntry.carryOut : computed.periodRemaining;
 
-      carryIn = day.carryOut;
+    } else {
+      // ── Adaptive mode: today's allowance = periodRemaining ÷ daysLeft ──
+      // daysLeft = today + all future days
+      const daysLeft    = 1 + futureDays.length;
+      const adaptiveDaily = daysLeft > 0 ? computed.periodRemaining / daysLeft : 0;
+      computed.adaptiveDailyBudget = adaptiveDaily;
+
+      if (todayEntry) {
+        todayEntry.baseBudget = adaptiveDaily;
+        todayEntry.carryIn    = carryIn;           // prev balance = carry arriving from past
+        todayEntry.available  = adaptiveDaily;     // no carry chaining into today
+        todayEntry.carryOut   = adaptiveDaily - spentToday; // today remaining
+      }
+      // totalRemaining for the Remaining tile = adaptiveDaily - spentToday
+      computed.totalRemaining = todayEntry ? todayEntry.carryOut : computed.periodRemaining;
+    }
+
+    // Future days get no spend data — just mark them
+    for (const day of futureDays) {
+      day.baseBudget = budgetStyle === 'fixed' ? fixedDaily : computed.adaptiveDailyBudget;
+      day.carryIn    = 0;
+      day.available  = day.baseBudget;
+      day.carryOut   = day.baseBudget;
     }
 
     computed.days  = days;
-    computed.today = days.find(d => d.status === 'today') || null;
+    computed.today = todayEntry;
 
-    const active             = days.filter(d => d.status !== 'future');
-    computed.totalSpent      = active.reduce((s, d) => s + d.spent, 0);
-    // periodRemaining: total budget minus everything spent so far — used in the setup bar
-    computed.periodRemaining = computed.totalIncome - computed.totalSpent;
-    // totalRemaining: today's carry-out from the day-by-day chain — used in the Remaining stat tile
-    computed.totalRemaining  = computed.today ? computed.today.carryOut : computed.periodRemaining;
-    computed.daysUnder       = days.filter(d => d.status === 'past-under').length;
-    computed.daysOver       = days.filter(d => d.status === 'past-over').length;
-    const todayOver      = (computed.today && computed.today.carryOut <  0) ? 1 : 0;
-    const todayUnder     = (computed.today && computed.today.carryOut >= 0) ? 1 : 0;
-    computed.daysOver   += todayOver;
+    computed.daysUnder  = days.filter(d => d.status === 'past-under').length;
+    computed.daysOver   = days.filter(d => d.status === 'past-over').length;
+    const todayOver     = (todayEntry && todayEntry.carryOut <  0) ? 1 : 0;
+    const todayUnder    = (todayEntry && todayEntry.carryOut >= 0) ? 1 : 0;
+    computed.daysOver  += todayOver;
     computed.daysOnTrack = computed.daysUnder + todayUnder;
 
     computed.categoryTotals = {};
