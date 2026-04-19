@@ -471,6 +471,105 @@ input[type=number].st-input::-webkit-inner-spin-button,
 input[type=number].st-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 input[type=number].st-input { -moz-appearance: textfield; }
 
+/* ── iOS-style discard action sheet ─────────────────────────── */
+#discard-sheet-wrap {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.22s ease;
+}
+#discard-sheet-wrap.open {
+  pointer-events: all;
+  opacity: 1;
+}
+
+#discard-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+#discard-sheet {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transform: translateY(20px);
+  transition: transform 0.28s cubic-bezier(0.34, 1.1, 0.64, 1);
+}
+#discard-sheet-wrap.open #discard-sheet {
+  transform: translateY(0);
+}
+
+#discard-title-group {
+  background: rgba(40, 40, 44, 0.92);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border-radius: 14px;
+  padding: 16px 16px 0;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+#discard-title {
+  display: block;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.55);
+  margin-bottom: 4px;
+}
+#discard-msg {
+  display: block;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.4);
+  padding-bottom: 12px;
+}
+
+#discard-confirm {
+  background: rgba(40, 40, 44, 0.92);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  width: 100%;
+  padding: 17px;
+  font-family: inherit;
+  font-size: 17px;
+  font-weight: 400;
+  color: #FF4F40;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+#discard-confirm:active { background: rgba(60, 60, 64, 0.95); }
+
+#discard-cancel {
+  background: rgba(40, 40, 44, 0.92);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  width: 100%;
+  padding: 17px;
+  font-family: inherit;
+  font-size: 17px;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+#discard-cancel:active { background: rgba(60, 60, 64, 0.95); }
+
 /* Save button */
 #st-save-btn {
   display: block;

@@ -705,12 +705,40 @@ function _doCloseSettings() {
 
 function tryCloseSettings() {
   if (!settingsChanged()) { _doCloseSettings(); return; }
-  if (confirm("Discard changes?\nYour settings haven't been saved.")) {
-    Object.assign(window.appSettings, _settingsSnapshot);
-    saveAppSettings(window.appSettings);
-    _doCloseSettings();
-  }
+  showDiscardSheet();
 }
+
+// ── iOS-style discard action sheet ───────────────────────────
+const discardSheet = document.createElement("div");
+discardSheet.id = "discard-sheet-wrap";
+discardSheet.innerHTML = `
+  <div id="discard-backdrop"></div>
+  <div id="discard-sheet">
+    <div id="discard-title-group">
+      <span id="discard-title">Unsaved Changes</span>
+      <span id="discard-msg">Your settings haven't been saved.</span>
+    </div>
+    <button id="discard-confirm">Discard Changes</button>
+    <button id="discard-cancel">Keep Editing</button>
+  </div>
+`;
+document.getElementById("app").appendChild(discardSheet);
+
+function showDiscardSheet() {
+  discardSheet.classList.add("open");
+}
+function hideDiscardSheet() {
+  discardSheet.classList.remove("open");
+}
+
+document.getElementById("discard-confirm").addEventListener("click", () => {
+  Object.assign(window.appSettings, _settingsSnapshot);
+  saveAppSettings(window.appSettings);
+  hideDiscardSheet();
+  _doCloseSettings();
+});
+document.getElementById("discard-cancel").addEventListener("click", hideDiscardSheet);
+document.getElementById("discard-backdrop").addEventListener("click", hideDiscardSheet);
 
 function closeSettings() {
   _doCloseSettings();

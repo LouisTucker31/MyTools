@@ -334,10 +334,13 @@
     computed.days  = days;
     computed.today = days.find(d => d.status === 'today') || null;
 
-    const active            = days.filter(d => d.status !== 'future');
-    computed.totalSpent     = active.reduce((s, d) => s + d.spent, 0);
-    computed.totalRemaining = computed.today ? computed.today.carryOut : computed.totalIncome - computed.totalSpent;
-    computed.daysUnder      = days.filter(d => d.status === 'past-under').length;
+    const active             = days.filter(d => d.status !== 'future');
+    computed.totalSpent      = active.reduce((s, d) => s + d.spent, 0);
+    // periodRemaining: total budget minus everything spent so far — used in the setup bar
+    computed.periodRemaining = computed.totalIncome - computed.totalSpent;
+    // totalRemaining: today's carry-out from the day-by-day chain — used in the Remaining stat tile
+    computed.totalRemaining  = computed.today ? computed.today.carryOut : computed.periodRemaining;
+    computed.daysUnder       = days.filter(d => d.status === 'past-under').length;
     computed.daysOver       = days.filter(d => d.status === 'past-over').length;
     const todayOver      = (computed.today && computed.today.carryOut <  0) ? 1 : 0;
     const todayUnder     = (computed.today && computed.today.carryOut >= 0) ? 1 : 0;
@@ -695,9 +698,10 @@
     const periodStr = `${shortDate(parseISO(periodStart))} – ${shortDate(parseISO(periodEnd))}`;
 
     const s = currSym();
-    const remainingDisplay = computed.totalRemaining < 0
-      ? `<span style="color:#FF4F40">−${s}${Math.abs(computed.totalRemaining).toFixed(2)}</span>`
-      : `${s}${computed.totalRemaining.toFixed(2)}`;
+    const pr = computed.periodRemaining;
+    const remainingDisplay = pr < 0
+      ? `<span style="color:#FF4F40">−${s}${Math.abs(pr).toFixed(2)}</span>`
+      : `${s}${pr.toFixed(2)}`;
 
     el.innerHTML =
       `<strong>${remainingDisplay}</strong> · ${periodStr}<br>` +
