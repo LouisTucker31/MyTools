@@ -410,8 +410,7 @@ body {
   height: 0.5px;
   background: rgba(255, 255, 255, 0.08);
 }
-.st-row.st-sub { padding-left: 32px; }
-.st-row.st-sub::before { left: 32px; }
+.st-row.st-sub::before { left: 16px; }
 
 .st-label {
   font-size: 16px;

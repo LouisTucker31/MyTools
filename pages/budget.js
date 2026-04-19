@@ -261,37 +261,68 @@
 
   function computeAll() {
     const { periodStart, periodEnd, disposableIncome } = state.settings;
-    const days      = buildDayList(periodStart, periodEnd);
-    const totalDays = days.length;
+    const budgetStyle = (window.appSettings || {}).budgetStyle || 'fixed';
+    const days        = buildDayList(periodStart, periodEnd);
+    const totalDays   = days.length;
+    const today       = todayISO();
 
-    const base               = totalDays > 0 ? disposableIncome / totalDays : 0;
-    computed.baseDailyBudget = base;
+    // ── Income adjustments ──────────────────────────────────────
+    let extraTotal = 0;
+    for (const adj of state.incomeAdjustments) extraTotal += adj.amount;
+    computed.extraIncomeTotal = extraTotal;
+    computed.totalIncome      = disposableIncome + extraTotal;
 
-    const dailyBudgets = days.map(() => base);
-    const today        = todayISO();
-    let   extraTotal   = 0;
+    // ── Fixed base: income ÷ total period days ──────────────────
+    const fixedDaily         = totalDays > 0 ? disposableIncome / totalDays : 0;
+    computed.baseDailyBudget = fixedDaily;
 
+    // ── Assign transactions and run the day-by-day chain ────────
+    //
+    // Past days always use the fixed base (what was actually budgeted
+    // each day). For adaptive mode, today's daily allowance is
+    // recalculated as: (totalIncome − spentBeforeToday) ÷ remainingDays.
+
+    // First pass: attach transactions to every day
+    for (const day of days) {
+      day.transactions = state.transactions.filter(t => t.date === day.date);
+      day.spent        = day.transactions.reduce((s, t) => s + t.amount, 0);
+    }
+
+    // Spread income adjustments across future+today days (same as before)
+    const dailyBudgets = days.map(() => fixedDaily);
     for (const adj of state.incomeAdjustments) {
       const effectiveDate = adj.date > today ? adj.date : today;
       const idx           = days.findIndex(d => d.date >= effectiveDate);
       if (idx === -1) continue;
       const perDay = adj.amount / (days.length - idx);
       for (let i = idx; i < days.length; i++) dailyBudgets[i] += perDay;
-      extraTotal += adj.amount;
     }
 
-    computed.extraIncomeTotal = extraTotal;
-    computed.totalIncome      = disposableIncome + extraTotal;
+    // Adaptive: override today's allowance
+    if (budgetStyle === 'adaptive') {
+      const todayIdx      = days.findIndex(d => d.date === today);
+      const remainingDays = todayIdx === -1
+        ? days.filter(d => d.date >= today).length
+        : days.length - todayIdx;         // today + future days
+      const spentBefore   = days
+        .filter(d => d.date < today)
+        .reduce((s, d) => s + d.spent, 0);
+      const budgetLeft    = computed.totalIncome - spentBefore;
+      const adaptiveDaily = remainingDays > 0 ? budgetLeft / remainingDays : 0;
+      computed.adaptiveDailyBudget = adaptiveDaily;
+      if (todayIdx !== -1) dailyBudgets[todayIdx] = adaptiveDaily;
+    } else {
+      computed.adaptiveDailyBudget = fixedDaily;
+    }
 
+    // Second pass: chain carry-over day by day
     let carryIn = 0;
     for (let i = 0; i < days.length; i++) {
-      const day        = days[i];
-      day.baseBudget   = dailyBudgets[i];
-      day.carryIn      = carryIn;
-      day.available    = dailyBudgets[i] + carryIn;
-      day.transactions = state.transactions.filter(t => t.date === day.date);
-      day.spent        = day.transactions.reduce((s, t) => s + t.amount, 0);
-      day.carryOut     = day.available - day.spent;
+      const day      = days[i];
+      day.baseBudget = dailyBudgets[i];
+      day.carryIn    = carryIn;
+      day.available  = dailyBudgets[i] + carryIn;
+      day.carryOut   = day.available - day.spent;
 
       if      (day.date === today) day.status = 'today';
       else if (day.date  < today)  day.status = day.carryOut >= 0 ? 'past-under' : 'past-over';
@@ -305,7 +336,7 @@
 
     const active            = days.filter(d => d.status !== 'future');
     computed.totalSpent     = active.reduce((s, d) => s + d.spent, 0);
-    computed.totalRemaining = computed.totalIncome - computed.totalSpent;
+    computed.totalRemaining = computed.today ? computed.today.carryOut : computed.totalIncome - computed.totalSpent;
     computed.daysUnder      = days.filter(d => d.status === 'past-under').length;
     computed.daysOver       = days.filter(d => d.status === 'past-over').length;
     const todayOver      = (computed.today && computed.today.carryOut <  0) ? 1 : 0;
@@ -687,12 +718,18 @@
       return;
     }
 
-    const t = computed.today;
-    const remClass = t.carryOut > 0 ? 'b-stat--pos-outline' : t.carryOut < 0 ? 'b-stat--neg-outline' : '';
-    const remColor = t.carryOut > 0 ? '#34C759' : t.carryOut < 0 ? '#FF4F40' : '';
+    const t            = computed.today;
+    const isAdaptive   = ((window.appSettings || {}).budgetStyle) === 'adaptive';
+    const dailyDisplay = isAdaptive ? computed.adaptiveDailyBudget : computed.baseDailyBudget;
+    const remClass     = t.carryOut > 0 ? 'b-stat--pos-outline' : t.carryOut < 0 ? 'b-stat--neg-outline' : '';
+    const remColor     = t.carryOut > 0 ? '#34C759' : t.carryOut < 0 ? '#FF4F40' : '';
+
+    // Adaptive mode: "Carried Over" shows yesterday's carry-in; label changes to clarify
+    const carryLbl = isAdaptive ? 'Prev. Balance' : 'Carried Over';
+
     el.innerHTML = `
       <div class="b-stat">
-        <span class="b-stat-val">${fmt(computed.baseDailyBudget)}</span>
+        <span class="b-stat-val">${fmt(dailyDisplay)}</span>
         <span class="b-stat-lbl">Daily Limit</span>
       </div>
       <div class="b-stat">
@@ -701,7 +738,7 @@
       </div>
       <div class="b-stat">
         <span class="b-stat-val">${fmtSgn(t.carryIn)}</span>
-        <span class="b-stat-lbl">Carried Over</span>
+        <span class="b-stat-lbl">${carryLbl}</span>
       </div>
       <div class="b-stat ${remClass}">
         <span class="b-stat-val" style="color:${remColor}">${fmtBal(t.carryOut)}</span>

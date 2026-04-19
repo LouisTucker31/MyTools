@@ -688,20 +688,44 @@ settingsBackdrop.id     = "settings-backdrop";
 document.getElementById("app").appendChild(settingsBackdrop);
 document.getElementById("app").appendChild(settingsSheet);
 
+let _settingsSnapshot = null;
+
+function settingsChanged() {
+  if (!_settingsSnapshot) return false;
+  const keys = ['periodType','paydayDay','budgetStart','budgetStyle','currency','notifications'];
+  return keys.some(k => String(window.appSettings[k]) !== String(_settingsSnapshot[k]));
+}
+
+function _doCloseSettings() {
+  settingsSheet.classList.remove("open");
+  settingsBackdrop.classList.remove("open");
+  settingsSheet.style.transform = "";
+  _settingsSnapshot = null;
+}
+
+function tryCloseSettings() {
+  if (!settingsChanged()) { _doCloseSettings(); return; }
+  if (confirm("Discard changes?\nYour settings haven't been saved.")) {
+    Object.assign(window.appSettings, _settingsSnapshot);
+    saveAppSettings(window.appSettings);
+    _doCloseSettings();
+  }
+}
+
+function closeSettings() {
+  _doCloseSettings();
+}
+
 function openSettings() {
+  renderSettingsValues();
+  _settingsSnapshot = Object.assign({}, window.appSettings);
   settingsSheet.classList.add("open");
   settingsBackdrop.classList.add("open");
   settingsSheet.style.transform = "";
 }
 
-function closeSettings() {
-  settingsSheet.classList.remove("open");
-  settingsBackdrop.classList.remove("open");
-  settingsSheet.style.transform = "";
-}
-
-document.getElementById("settings-close").addEventListener("click", closeSettings);
-settingsBackdrop.addEventListener("click", closeSettings);
+document.getElementById("settings-close").addEventListener("click", tryCloseSettings);
+settingsBackdrop.addEventListener("click", tryCloseSettings);
 settingsBtn.addEventListener("click", () => { closeMenu(); openSettings(); });
 
 // Drag-to-dismiss
@@ -736,7 +760,7 @@ function onSheetPointerUp() {
   settingsSheet.style.transition = "";
   settingsBackdrop.style.opacity = "";
   if (sheetDragCurrent > DISMISS_THRESHOLD) {
-    closeSettings();
+    tryCloseSettings();
   } else {
     settingsSheet.style.transform = "";
   }
@@ -801,12 +825,6 @@ document.getElementById('st-save-btn').addEventListener('click', () => {
   closeSettings();
 });
 
-// Render values whenever sheet opens
-const _origOpenSettings = openSettings;
-openSettings = function() {
-  renderSettingsValues();
-  _origOpenSettings();
-};
 
 
 /* ── Service Worker registration ── */
