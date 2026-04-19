@@ -747,11 +747,12 @@ function closeSettings() {
 }
 
 function openSettings() {
-  renderSettingsValues();
   _settingsSnapshot = Object.assign({}, window.appSettings);
   settingsSheet.classList.add("open");
   settingsBackdrop.classList.add("open");
   settingsSheet.style.transform = "";
+  // Populate values after the slide-up has started so DOM work doesn't block the animation
+  requestAnimationFrame(() => renderSettingsValues());
 }
 
 document.getElementById("settings-close").addEventListener("click", tryCloseSettings);

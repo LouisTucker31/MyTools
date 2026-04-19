@@ -217,9 +217,10 @@ body {
   opacity: 0;
   pointer-events: none;
   transition:
-    transform 0.42s cubic-bezier(0.34, 1.1, 0.64, 1),
-    opacity   0.26s ease;
+    transform 0.38s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+    opacity   0.22s ease;
   padding: 6px;
+  will-change: transform, opacity;
 }
 
 #pill-menu.open {
@@ -324,12 +325,14 @@ body {
   border-radius: 12px 12px 0 0;
   padding: 0;
   transform: translateY(100%);
-  transition: transform 0.42s cubic-bezier(0.34, 1.1, 0.64, 1);
+  transition: transform 0.46s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   overflow-y: auto;
   overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
   box-shadow: 0 -1px 0 rgba(255, 255, 255, 0.08), 0 -8px 40px rgba(0, 0, 0, 0.6);
   scrollbar-width: none;
   -ms-overflow-style: none;
+  will-change: transform;
 }
 #settings-sheet::-webkit-scrollbar { display: none; }
 #settings-sheet.open {
@@ -473,14 +476,14 @@ input[type=number].st-input::-webkit-inner-spin-button,
 input[type=number].st-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 input[type=number].st-input { -moz-appearance: textfield; }
 
-/* ── iOS action sheet ─────────────────────────────────────────── */
+/* ── iOS 18 liquid-glass action sheet ────────────────────────── */
 #discard-sheet-wrap {
   position: fixed;
   inset: 0;
   z-index: 500;
   pointer-events: none;
   opacity: 0;
-  transition: opacity 0.2s ease;
+  transition: opacity 0.25s ease;
 }
 #discard-sheet-wrap.open {
   pointer-events: all;
@@ -490,7 +493,9 @@ input[type=number].st-input { -moz-appearance: textfield; }
 #discard-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
 }
 
 #discard-sheet {
@@ -502,42 +507,48 @@ input[type=number].st-input { -moz-appearance: textfield; }
   flex-direction: column;
   align-items: stretch;
   gap: 8px;
-  padding: 8px 8px max(16px, env(safe-area-inset-bottom, 16px));
-  transform: translateY(100%);
-  transition: transform 0.36s cubic-bezier(0.32, 0.72, 0, 1);
+  padding: 8px 8px max(20px, env(safe-area-inset-bottom, 20px));
+  transform: translateY(110%);
+  transition: transform 0.46s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  will-change: transform;
 }
 #discard-sheet-wrap.open #discard-sheet {
   transform: translateY(0);
 }
 
+/* Main card: title + destructive action merged */
 #discard-main-card {
-  background: rgba(30, 30, 32, 0.92);
-  backdrop-filter: blur(60px) saturate(200%);
-  -webkit-backdrop-filter: blur(60px) saturate(200%);
-  border-radius: 14px;
+  background: rgba(118, 118, 128, 0.18);
+  backdrop-filter: blur(80px) saturate(280%) brightness(1.15);
+  -webkit-backdrop-filter: blur(80px) saturate(280%) brightness(1.15);
+  border-radius: 16px;
   overflow: hidden;
+  border: 0.5px solid rgba(255, 255, 255, 0.18);
+  box-shadow:
+    0 2px 24px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
 }
 
 #discard-title-group {
-  padding: 14px 16px 12px;
-  border-bottom: 0.5px solid rgba(255, 255, 255, 0.15);
+  padding: 18px 20px 14px;
+  border-bottom: 0.5px solid rgba(255, 255, 255, 0.12);
 }
 #discard-title {
   display: block;
   text-align: center;
   font-size: 13px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.6);
-  margin-bottom: 3px;
-  letter-spacing: 0.1px;
+  color: rgba(255, 255, 255, 0.75);
+  margin-bottom: 4px;
+  letter-spacing: 0.08px;
 }
 #discard-msg {
   display: block;
   text-align: center;
   font-size: 13px;
   font-weight: 400;
-  color: rgba(255, 255, 255, 0.45);
-  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.55);
+  line-height: 1.45;
 }
 
 #discard-confirm {
@@ -545,7 +556,7 @@ input[type=number].st-input { -moz-appearance: textfield; }
   background: transparent;
   border: none;
   width: 100%;
-  padding: 16px;
+  padding: 17px 20px;
   font-family: inherit;
   font-size: 17px;
   font-weight: 400;
@@ -553,17 +564,24 @@ input[type=number].st-input { -moz-appearance: textfield; }
   cursor: pointer;
   transition: background 0.1s ease;
   -webkit-tap-highlight-color: transparent;
+  letter-spacing: -0.2px;
 }
-#discard-confirm:active { background: rgba(255, 255, 255, 0.08); }
+#discard-confirm:active {
+  background: rgba(255, 255, 255, 0.1);
+}
 
+/* Cancel: separate glass card */
 #discard-cancel {
-  background: rgba(30, 30, 32, 0.92);
-  backdrop-filter: blur(60px) saturate(200%);
-  -webkit-backdrop-filter: blur(60px) saturate(200%);
-  border: none;
-  border-radius: 14px;
+  background: rgba(118, 118, 128, 0.18);
+  backdrop-filter: blur(80px) saturate(280%) brightness(1.15);
+  -webkit-backdrop-filter: blur(80px) saturate(280%) brightness(1.15);
+  border: 0.5px solid rgba(255, 255, 255, 0.18);
+  box-shadow:
+    0 2px 24px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  border-radius: 16px;
   width: 100%;
-  padding: 16px;
+  padding: 17px 20px;
   font-family: inherit;
   font-size: 17px;
   font-weight: 600;
@@ -571,8 +589,11 @@ input[type=number].st-input { -moz-appearance: textfield; }
   cursor: pointer;
   transition: background 0.1s ease;
   -webkit-tap-highlight-color: transparent;
+  letter-spacing: -0.2px;
 }
-#discard-cancel:active { background: rgba(60, 60, 64, 0.98); }
+#discard-cancel:active {
+  background: rgba(255, 255, 255, 0.1);
+}
 
 /* Save button */
 #st-save-btn {
