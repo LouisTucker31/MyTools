@@ -330,9 +330,9 @@
 
       if (todayEntry) {
         todayEntry.baseBudget = adaptiveDaily;
-        todayEntry.carryIn    = carryIn;           // prev balance = carry arriving from past
-        todayEntry.available  = adaptiveDaily;     // no carry chaining into today
-        todayEntry.carryOut   = adaptiveDaily - spentToday; // today remaining
+        todayEntry.carryIn    = 0;                 // adaptive starts fresh — no carry into today
+        todayEntry.available  = adaptiveDaily;
+        todayEntry.carryOut   = adaptiveDaily - spentToday;
       }
       // totalRemaining for the Remaining tile = adaptiveDaily - spentToday
       computed.totalRemaining = todayEntry ? todayEntry.carryOut : computed.periodRemaining;

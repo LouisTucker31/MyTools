@@ -714,11 +714,13 @@ discardSheet.id = "discard-sheet-wrap";
 discardSheet.innerHTML = `
   <div id="discard-backdrop"></div>
   <div id="discard-sheet">
-    <div id="discard-title-group">
-      <span id="discard-title">Unsaved Changes</span>
-      <span id="discard-msg">Your settings haven't been saved.</span>
+    <div id="discard-main-card">
+      <div id="discard-title-group">
+        <span id="discard-title">Unsaved Changes</span>
+        <span id="discard-msg">Your settings haven't been saved.</span>
+      </div>
+      <button id="discard-confirm">Discard Changes</button>
     </div>
-    <button id="discard-confirm">Discard Changes</button>
     <button id="discard-cancel">Keep Editing</button>
   </div>
 `;
