@@ -428,13 +428,15 @@
       }
     }
 
-    const totalSpent   = days.filter(d => d.status !== 'future').reduce((s, d) => s + d.spent, 0);
-    const totalIncome  = income + extraTotal;
+    const totalSpent      = days.filter(d => d.status !== 'future').reduce((s, d) => s + d.spent, 0);
+    const totalIncome     = income + extraTotal;
+    const periodRemaining = totalIncome - totalSpent;
 
     return {
       days, categoryTotals: cats,
       totalIncome, totalSpent,
-      totalRemaining: totalIncome - totalSpent,
+      periodRemaining,
+      totalRemaining: periodRemaining,
       daysUnder:  days.filter(d => d.status === 'past-under').length,
       daysOver:   days.filter(d => d.status === 'past-over').length,
       extraIncomeTotal: extraTotal,
@@ -734,11 +736,14 @@
     const t            = computed.today;
     const isAdaptive   = ((window.appSettings || {}).budgetStyle) === 'adaptive';
     const dailyDisplay = isAdaptive ? computed.adaptiveDailyBudget : computed.baseDailyBudget;
-    const remClass     = t.carryOut > 0 ? 'b-stat--pos-outline' : t.carryOut < 0 ? 'b-stat--neg-outline' : '';
-    const remColor     = t.carryOut > 0 ? '#34C759' : t.carryOut < 0 ? '#FF4F40' : '';
+    const carryLbl     = isAdaptive ? 'Prev. Balance' : 'Carried Over';
 
-    // Adaptive mode: "Carried Over" shows yesterday's carry-in; label changes to clarify
-    const carryLbl = isAdaptive ? 'Prev. Balance' : 'Carried Over';
+    // Fixed mode: todayRemaining = carryIn + dailyFixed - spentToday  (t.carryOut)
+    // Adaptive mode: todayRemaining = adaptiveDaily - spentToday        (t.carryOut)
+    // Both modes store the correct value in t.carryOut — use it directly
+    const rem      = t.carryOut;
+    const remClass = rem > 0 ? 'b-stat--pos-outline' : rem < 0 ? 'b-stat--neg-outline' : '';
+    const remColor = rem > 0 ? '#34C759' : rem < 0 ? '#FF4F40' : '';
 
     el.innerHTML = `
       <div class="b-stat">
@@ -754,7 +759,7 @@
         <span class="b-stat-lbl">${carryLbl}</span>
       </div>
       <div class="b-stat ${remClass}">
-        <span class="b-stat-val" style="color:${remColor}">${fmtBal(t.carryOut)}</span>
+        <span class="b-stat-val" style="color:${remColor}">${fmtBal(rem)}</span>
         <span class="b-stat-lbl">Remaining</span>
       </div>`;
   }
@@ -1045,7 +1050,8 @@
     }
 
     el.style.display = '';
-    const remainCls = data.totalRemaining < 0 ? ' b-sum-val--neg' : '';
+    const periodRem  = data.periodRemaining !== undefined ? data.periodRemaining : data.totalIncome - data.totalSpent;
+    const remainCls  = periodRem < 0 ? ' b-sum-val--neg' : '';
 
     const extraLine = data.extraIncomeTotal > 0
       ? `<div class="b-sum-tile b-sum-tile--income">
@@ -1064,7 +1070,7 @@
   <div class="b-sum-lbl">Total<br>Spent</div>
 </div>
 <div class="b-sum-tile">
-  <div class="b-sum-val${remainCls}">${fmtBal(data.totalRemaining)}</div>
+  <div class="b-sum-val${remainCls}">${fmtBal(periodRem)}</div>
   <div class="b-sum-lbl">Remaining<br>Budget</div>
 </div>
 ${extraLine}
