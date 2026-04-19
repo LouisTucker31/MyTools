@@ -297,28 +297,28 @@
     const fixedDaily         = totalDays > 0 ? totalIncome / totalDays : 0;
     computed.baseDailyBudget = fixedDaily;
 
-    // Carry chain for past days (same in both modes — history is history)
-    let carryIn = 0;
+    // Mark past days for calendar colouring (no carry chain needed for display)
     for (const day of pastDays) {
       day.baseBudget = fixedDaily;
-      day.carryIn    = carryIn;
-      day.available  = fixedDaily + carryIn;
-      day.carryOut   = day.available - day.spent;
+      day.carryIn    = 0;
+      day.available  = fixedDaily;
+      day.carryOut   = fixedDaily - day.spent;
       day.status     = day.carryOut >= 0 ? 'past-under' : 'past-over';
-      carryIn        = day.carryOut;
     }
-    // carryIn now holds the carry arriving into today from yesterday
 
     if (budgetStyle === 'fixed') {
-      // ── Fixed mode: today uses fixed daily + carry from yesterday ──
-      computed.adaptiveDailyBudget = fixedDaily; // not used but keep consistent
+      computed.adaptiveDailyBudget = fixedDaily;
+
+      // yesterdayEndBalance = dailyFixed - spentYesterday (carry starts fresh each day)
+      const yesterday        = pastDays.length > 0 ? pastDays[pastDays.length - 1] : null;
+      const yesterdayEnd     = yesterday ? fixedDaily - yesterday.spent : 0;
+
       if (todayEntry) {
         todayEntry.baseBudget = fixedDaily;
-        todayEntry.carryIn    = carryIn;           // carry from yesterday
-        todayEntry.available  = fixedDaily + carryIn;
-        todayEntry.carryOut   = todayEntry.available - spentToday;
+        todayEntry.carryIn    = yesterdayEnd;                        // = dailyFixed - spentYesterday
+        todayEntry.available  = yesterdayEnd + fixedDaily;
+        todayEntry.carryOut   = yesterdayEnd + fixedDaily - spentToday;
       }
-      // totalRemaining for the Remaining tile = today's carry-out
       computed.totalRemaining = todayEntry ? todayEntry.carryOut : computed.periodRemaining;
 
     } else {
