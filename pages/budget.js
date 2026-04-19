@@ -148,9 +148,11 @@
     return `${d.getDate()} ${MON_SHORT[d.getMonth()]}`;
   }
 
-  const fmt    = n => '£'               + Math.abs(n).toFixed(2);
-  const fmtSgn = n => (n > 0 ? '+£' : n < 0 ? '−£' : '£') + Math.abs(n).toFixed(2);
-  const fmtBal = n => (n <  0 ? '−£' : '£')  + Math.abs(n).toFixed(2);
+  const CURRENCY_SYMBOLS = { GBP: '£', USD: '$', EUR: '€' };
+  function currSym() { return CURRENCY_SYMBOLS[(window.appSettings || {}).currency] || '£'; }
+  const fmt    = n => currSym()                   + Math.abs(n).toFixed(2);
+  const fmtSgn = n => (n > 0 ? '+' : n < 0 ? '−' : '') + currSym() + Math.abs(n).toFixed(2);
+  const fmtBal = n => (n < 0 ? '−' : '') + currSym() + Math.abs(n).toFixed(2);
 
   function uuid() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -169,14 +171,12 @@
     return d;
   }
 
-  // Payday date for a given month/year based on current settings
+  // Payday date for a given month/year — reads from app-level settings
   function paydayForMonth(y, m) {
-    const s = state.settings;
-    if (s.paydayMode === 'lastWeekday') {
-      return lastWeekdayOfMonth(y, m);
-    }
-    // Fixed day — clamp to actual days in month
-    const day = Math.min(s.paydayDay || 1, new Date(y, m + 1, 0).getDate());
+    const as = window.appSettings || {};
+    const mode = as.periodType || state.settings.paydayMode || 'fixed';
+    if (mode === 'lastWeekday') return lastWeekdayOfMonth(y, m);
+    const day = Math.min(as.paydayDay || state.settings.paydayDay || 1, new Date(y, m + 1, 0).getDate());
     return new Date(y, m, day);
   }
 
@@ -423,18 +423,9 @@
     const toggle = document.getElementById('b-setup-toggle');
     if (!panel || !toggle) return;
 
-    const incomeEl  = document.getElementById('b-income');
-    const modeEl    = document.getElementById('b-mode');
-    const dayEl     = document.getElementById('b-payday-day');
-    const dayWrap   = document.getElementById('b-payday-day-wrap');
-
+    const incomeEl = document.getElementById('b-income');
     if (incomeEl) incomeEl.value = state.settings.disposableIncome || '';
-    if (modeEl)   modeEl.value  = state.settings.paydayMode || 'fixed';
-    if (dayEl)    dayEl.value   = state.settings.paydayDay  || '';
-    dayWrap?.classList.toggle('b-hidden', (state.settings.paydayMode || 'fixed') !== 'fixed');
 
-    document.getElementById('b-start-choice')?.classList.add('b-hidden');
-    document.getElementById('b-save-actions')?.classList.remove('b-hidden');
     panel.classList.remove('b-hidden');
     toggle.textContent = 'Done';
     setTimeout(() => incomeEl?.focus(), 50);
@@ -479,6 +470,8 @@
     const input   = document.getElementById('b-rollover-income');
     if (!panel) return;
     const prev = state.settings.pendingRollover?.prevIncome || 0;
+    const symEl = document.getElementById('b-rollover-prev-sym');
+    if (symEl)  symEl.textContent  = currSym();
     if (prevAmt) prevAmt.textContent = prev.toFixed(2);
     if (input)   input.value = '';
     panel.classList.remove('b-hidden');
@@ -533,33 +526,15 @@
       </div>
       <div class="b-setup-actions">
         <button class="b-btn-primary" id="b-rollover-save">Start New Period</button>
-        <button class="b-btn-ghost"   id="b-rollover-prev">Use £<span id="b-rollover-prev-amt"></span></button>
+        <button class="b-btn-ghost"   id="b-rollover-prev">Use <span id="b-rollover-prev-sym"></span><span id="b-rollover-prev-amt"></span></button>
       </div>
     </div>
 
     <div class="b-setup-panel b-hidden" id="b-setup-panel">
-      <div class="b-two-col">
-        <div class="b-field">
-          <span class="b-field-lbl">Budget Amount</span>
-          <input type="number" class="b-input" id="b-income"
-                 min="0" step="0.01" placeholder="£0.00">
-        </div>
-        <div class="b-field">
-          <span class="b-field-lbl">Payday</span>
-          <select class="b-input" id="b-mode">
-            <option value="fixed">Fixed date</option>
-            <option value="lastWeekday">Last weekday</option>
-          </select>
-        </div>
-      </div>
-      <div class="b-field b-hidden" id="b-payday-day-wrap">
-        <span class="b-field-lbl">Day of month (1–28)</span>
-        <input type="number" class="b-input" id="b-payday-day"
-               min="1" max="28" placeholder="e.g. 27">
-      </div>
-      <div class="b-setup-actions b-hidden" id="b-start-choice">
-        <button class="b-btn-primary" id="b-from-start" style="flex:1"><span id="b-period-start-label">From Start</span></button>
-        <button class="b-btn-ghost"   id="b-from-today" style="flex:1">From Today</button>
+      <div class="b-field">
+        <span class="b-field-lbl">Budget Amount</span>
+        <input type="number" class="b-input" id="b-income"
+               min="0" step="0.01" placeholder="£0.00">
       </div>
       <div class="b-setup-actions" id="b-save-actions">
         <button class="b-btn-primary" id="b-save-setup">Save</button>
@@ -602,7 +577,7 @@
         </div>
       </div>
       <div class="b-entry-note">
-        <input type="text" class="b-input" id="b-note" placeholder="Note (optional)">
+        <input type="text" class="b-input" id="b-note" placeholder="Note (optional)" autocapitalize="words">
       </div>
       <div class="b-entry-note">
         <input type="date" class="b-input" id="b-txn-date">
@@ -688,9 +663,10 @@
 
     const periodStr = `${shortDate(parseISO(periodStart))} – ${shortDate(parseISO(periodEnd))}`;
 
+    const s = currSym();
     const remainingDisplay = computed.totalRemaining < 0
-      ? `<span style="color:#FF4F40">−£${Math.abs(computed.totalRemaining).toFixed(2)}</span>`
-      : `£${computed.totalRemaining.toFixed(2)}`;
+      ? `<span style="color:#FF4F40">−${s}${Math.abs(computed.totalRemaining).toFixed(2)}</span>`
+      : `${s}${computed.totalRemaining.toFixed(2)}`;
 
     el.innerHTML =
       `<strong>${remainingDisplay}</strong> · ${periodStr}<br>` +
@@ -712,21 +688,23 @@
     }
 
     const t = computed.today;
+    const remClass = t.carryOut > 0 ? 'b-stat--pos-outline' : t.carryOut < 0 ? 'b-stat--neg-outline' : '';
+    const remColor = t.carryOut > 0 ? '#34C759' : t.carryOut < 0 ? '#FF4F40' : '';
     el.innerHTML = `
       <div class="b-stat">
-        <span class="b-stat-val">${fmt(t.available)}</span>
+        <span class="b-stat-val">${fmt(computed.baseDailyBudget)}</span>
         <span class="b-stat-lbl">Daily Limit</span>
       </div>
       <div class="b-stat">
         <span class="b-stat-val">${fmt(t.spent)}</span>
         <span class="b-stat-lbl">Spent Today</span>
       </div>
-      <div class="b-stat ${t.carryIn > 0 ? 'b-stat--pos-outline' : t.carryIn < 0 ? 'b-stat--neg-outline' : ''}">
-        <span class="b-stat-val" style="color:${t.carryIn > 0 ? '#34C759' : t.carryIn < 0 ? '#FF4F40' : ''}">${fmtSgn(t.carryIn)}</span>
+      <div class="b-stat">
+        <span class="b-stat-val">${fmtSgn(t.carryIn)}</span>
         <span class="b-stat-lbl">Carried Over</span>
       </div>
-      <div class="b-stat ${t.carryOut > 0 ? 'b-stat--pos-outline' : t.carryOut < 0 ? 'b-stat--neg-outline' : ''}">
-        <span class="b-stat-val" style="color:${t.carryOut > 0 ? '#34C759' : t.carryOut < 0 ? '#FF4F40' : ''}">${fmtBal(t.carryOut)}</span>
+      <div class="b-stat ${remClass}">
+        <span class="b-stat-val" style="color:${remColor}">${fmtBal(t.carryOut)}</span>
         <span class="b-stat-lbl">Remaining</span>
       </div>`;
   }
@@ -868,7 +846,7 @@
       <select class="b-input b-edit-cat">${opts}</select>
     </div>
     <input type="text" class="b-input b-edit-note"
-           value="${t.note}" placeholder="Note (optional)">
+           value="${t.note}" placeholder="Note (optional)" autocapitalize="words">
     <input type="date" class="b-input b-edit-date"
            value="${t.date}" min="${pStart}" max="${today}">
     <div class="b-txn-edit-actions">
@@ -972,15 +950,17 @@
   }
 
   function fmtSpent(n) {
-    if (n < 10)   return '£' + n.toFixed(1);
-    if (n < 1000) return '£' + Math.round(n);
-    return '£' + (n / 1000).toFixed(1) + 'k';
+    const s = currSym();
+    if (n < 10)   return s + n.toFixed(1);
+    if (n < 1000) return s + Math.round(n);
+    return s + (n / 1000).toFixed(1) + 'k';
   }
 
   function calCellTitle(day) {
+    const s = currSym();
     if (day.status === 'future')
-      return `${day.date} · Budget £${day.baseBudget.toFixed(2)}`;
-    return `${day.date} · Spent £${day.spent.toFixed(2)} · Balance £${day.carryOut.toFixed(2)}`;
+      return `${day.date} · Budget ${s}${day.baseBudget.toFixed(2)}`;
+    return `${day.date} · Spent ${s}${day.spent.toFixed(2)} · Balance ${s}${day.carryOut.toFixed(2)}`;
   }
 
   // ── Summary + Categories (context-aware) ─────────────────────
@@ -1143,37 +1123,20 @@ ${extraLine}
   /* ── 10. MUTATION FUNCTIONS ───────────────────────────────── */
 
   function saveSettings() {
-    const incomeEl  = document.getElementById('b-income');
-    const modeEl    = document.getElementById('b-mode');
-    const dayEl     = document.getElementById('b-payday-day');
-
-    const income     = parseFloat(incomeEl?.value);
-    const paydayMode = modeEl?.value || 'fixed';
-    const paydayDay  = paydayMode === 'fixed' ? parseInt(dayEl?.value) : null;
-
-    if (isNaN(income) || income <= 0)                         { flashInput(incomeEl); return; }
-    if (paydayMode === 'fixed' && (isNaN(paydayDay) || paydayDay < 1 || paydayDay > 28)) {
-      flashInput(dayEl); return;
-    }
+    const incomeEl = document.getElementById('b-income');
+    const income   = parseFloat(incomeEl?.value);
+    if (isNaN(income) || income <= 0) { flashInput(incomeEl); return; }
 
     state.settings.disposableIncome = income;
-    state.settings.paydayMode       = paydayMode;
-    if (paydayMode === 'fixed') state.settings.paydayDay = paydayDay;
 
-    // Always show the From Start / From Today choice so the user
-    // can decide whether to backdate to period start or start fresh today.
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const y = today.getFullYear(), mon = today.getMonth();
-    const paydayThis = paydayForMonth(y, mon);
-    // The period start date that "From Start" would use
-    const periodStartDate = paydayThis <= today
-      ? paydayThis
-      : paydayForMonth(mon === 0 ? y - 1 : y, mon === 0 ? 11 : mon - 1);
-    const startLabel = `From ${shortDate(periodStartDate)}`;
-    document.getElementById('b-period-start-label').textContent = startLabel;
-    document.getElementById('b-start-choice')?.classList.remove('b-hidden');
-    document.getElementById('b-save-actions')?.classList.add('b-hidden');
+    // Sync payday settings from app-level settings
+    const as = window.appSettings || {};
+    state.settings.paydayMode = as.periodType || 'fixed';
+    state.settings.paydayDay  = as.paydayDay  || 1;
+
+    // Use budgetStart setting: 'period' = from period start, 'today' = from today
+    const fromStart = (as.budgetStart || 'period') === 'period';
+    applySettings(fromStart);
   }
 
   function applySettings(fromStart) {
@@ -1181,8 +1144,6 @@ ${extraLine}
     initPeriod(fromStart);
     saveState();
     computeAll();
-    document.getElementById('b-start-choice')?.classList.add('b-hidden');
-    document.getElementById('b-save-actions')?.classList.remove('b-hidden');
     render();
     closeSetup();
   }
@@ -1308,15 +1269,6 @@ ${extraLine}
     document.getElementById('b-rollover-prev')?.addEventListener('click', () => {
       saveRollover(state.settings.pendingRollover?.prevIncome || 0);
     });
-
-    document.getElementById('b-mode')?.addEventListener('change', e => {
-      const isFixed = e.target.value === 'fixed';
-      document.getElementById('b-payday-day-wrap')?.classList.toggle('b-hidden', !isFixed);
-      document.getElementById('b-start-choice')?.classList.add('b-hidden');
-    });
-
-    document.getElementById('b-from-today')?.addEventListener('click', () => applySettings(false));
-    document.getElementById('b-from-start')?.addEventListener('click', () => applySettings(true));
 
     // Add Income toggle
     document.getElementById('b-income-toggle')?.addEventListener('click', () => {
@@ -1528,6 +1480,20 @@ ${extraLine}
 
 
   /* ── 12. BOOT ─────────────────────────────────────────────── */
+
+  // Re-apply period + re-render when app-level settings change
+  window.addEventListener('appsettingschanged', () => {
+    const as = window.appSettings || {};
+    state.settings.paydayMode = as.periodType || 'fixed';
+    state.settings.paydayDay  = as.paydayDay  || 1;
+    if (state.settings.isSetup) {
+      const fromStart = (as.budgetStart || 'period') === 'period';
+      initPeriod(fromStart);
+      saveState();
+    }
+    computeAll();
+    render();
+  });
 
   // Migrate old periodMode settings before anything else runs
   migrateState();

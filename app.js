@@ -21,6 +21,7 @@ const pages = [
 const bg         = document.getElementById("bg");
 const strip      = document.getElementById("strip");
 const pillLabel  = document.getElementById("pill-label");
+const pillIcon   = document.getElementById("pill-icon");
 const pill       = document.getElementById("pill");
 const dotsWrap   = document.createElement("div");
 dotsWrap.id      = "dots";
@@ -185,38 +186,37 @@ function animateBgSnap(timestamp) {
 function updatePill(newLabel) {
   if (pillLabel.textContent === newLabel) return;
 
-  // 1. Lock current width so we have a from-state
+  const pageIndex = pages.findIndex(p => p.title === newLabel);
+  const newIcon = pageIndex >= 0 ? menuIcons[pageIconKeys[pageIndex]] : "";
+
+  // 1. Lock current width
   const fromWidth = pill.getBoundingClientRect().width;
   pill.style.width = fromWidth + "px";
 
-  // 2. Fade the label out
+  // 2. Fade label and icon out
   pillLabel.classList.add("fading");
+  pillIcon.classList.add("fading");
 
   setTimeout(() => {
-    // 3. Swap the text while invisible
+    // 3. Swap content while invisible
     pillLabel.textContent = newLabel;
+    pillIcon.innerHTML = newIcon;
 
     // 4. Fade back in
     pillLabel.classList.remove("fading");
+    pillIcon.classList.remove("fading");
 
-    // 5. Let the pill measure its new natural width, then animate to it
-    // We do this by briefly allowing width: max-content to measure,
-    // then animating from fromWidth → measured width.
+    // 5. Animate pill width to fit new content
     pill.style.width = "max-content";
-    const toWidth = pill.scrollWidth + 24; // 24 = 2 × 12px padding
+    const toWidth = pill.scrollWidth + 24;
 
-    // Force layout read, then snap back to fromWidth and animate
     pill.style.transition = "none";
     pill.style.width = fromWidth + "px";
-
-    // Trigger a reflow so the next width assignment animates
     void pill.offsetWidth;
-
-    // Re-enable springy transition and animate to new width
     pill.style.transition = "";
     pill.style.width = toWidth + "px";
 
-  }, 75); // 75ms = half of the 150ms label fade
+  }, 75);
 }
 
 
@@ -253,7 +253,7 @@ dotsWrap.addEventListener("click", e => {
 
 
 /* ── 9. SNAP TO PAGE ────────────────────────────────────── */
-function snapToPage(index, fromVelocity) {
+function snapToPage(index, fromVelocity, instant) {
   const clampedIndex = Math.max(0, Math.min(pages.length - 1, index));
   targetIndex = clampedIndex;
   currentIndex = clampedIndex;
@@ -270,19 +270,22 @@ function snapToPage(index, fromVelocity) {
   bgAnimTo    = hexToRgb(pages[clampedIndex].bg);
   rafId = requestAnimationFrame(animateBgSnap);
 
-  // Animate the strip
-  strip.classList.add("snapping");
-  setTranslate(targetX);
-  currentTranslateX = targetX;
+  // Instant jump (from menu) — no slide animation
+  if (instant) {
+    setTranslate(targetX);
+    currentTranslateX = targetX;
+  } else {
+    strip.classList.add("snapping");
+    setTranslate(targetX);
+    currentTranslateX = targetX;
+    strip.addEventListener("transitionend", () => {
+      strip.classList.remove("snapping");
+    }, { once: true });
+  }
 
   // Update pill and dots
   updatePill(pages[clampedIndex].title);
   updateDots(clampedIndex);
-
-  // Remove snap class after transition ends
-  strip.addEventListener("transitionend", () => {
-    strip.classList.remove("snapping");
-  }, { once: true });
 }
 
 /**
@@ -465,12 +468,102 @@ function onPointerUp(e) {
 }
 
 
-/* ── 12. INITIALISE ─────────────────────────────────────── */
+/* ── 12. PILL DROPDOWN MENU ─────────────────────────────── */
+
+const menuIcons = {
+  settings: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>`,
+  budget:   `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/><path d="M7 15h2M12 15h3"/></svg>`,
+  bills:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>`,
+  savings:  `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>`,
+  debts:    `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6.5C14 4.5 12.5 3.5 10.5 3.5c-2.8 0-4.5 2-4.5 5 0 1.2 0 5.5 0 8.5"/><line x1="5" y1="11.5" x2="13" y2="11.5"/><line x1="5" y1="17" x2="17" y2="17"/></svg>`,
+};
+const pageIconKeys = ["budget", "bills", "savings", "debts"];
+
+const menuBackdrop = document.createElement("div");
+menuBackdrop.id = "pill-menu-backdrop";
+document.getElementById("app").appendChild(menuBackdrop);
+
+const pillMenu = document.createElement("div");
+pillMenu.id = "pill-menu";
+
+function positionMenu() {
+  // Align menu top-right to pill top-right — menu appears to grow from the pill
+  const pillRect = pill.getBoundingClientRect();
+  pillMenu.style.top   = pillRect.top + "px";
+  pillMenu.style.right = (window.innerWidth - pillRect.right) + "px";
+}
+
+function menuRow(svgIcon, label) {
+  const btn = document.createElement("button");
+  btn.className = "pill-menu-item";
+  btn.innerHTML = `<span class="pill-menu-item-inner">
+    <span class="pill-menu-icon">${svgIcon}</span>
+    <span class="pill-menu-label">${label}</span>
+  </span>`;
+  return btn;
+}
+
+// Settings row
+const settingsBtn = menuRow(menuIcons.settings, "Settings");
+settingsBtn.addEventListener("click", () => closeMenu());
+pillMenu.appendChild(settingsBtn);
+
+// Page rows
+pages.forEach((page, i) => {
+  const item = menuRow(menuIcons[pageIconKeys[i]], page.title);
+  item.dataset.menuIndex = i;
+  item.addEventListener("click", () => {
+    closeMenu();
+    snapToPage(i, null, true);
+  });
+  pillMenu.appendChild(item);
+});
+
+document.getElementById("app").appendChild(pillMenu);
+
+function updateMenuBg() {
+  const rgb = hexToRgb(pages[currentIndex].bg);
+  pillMenu.style.setProperty("--menu-bg",
+    `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, 0.52)`);
+}
+
+function positionAndOpen() {
+  positionMenu();
+  updateMenuBg();
+  updateMenuActive();
+  pillMenu.classList.add("open");
+  menuBackdrop.classList.add("open");
+  pill.classList.add("menu-open");
+}
+
+function closeMenu() {
+  pillMenu.classList.remove("open");
+  menuBackdrop.classList.remove("open");
+  // Delay re-showing pill until menu has faded out
+  setTimeout(() => pill.classList.remove("menu-open"), 180);
+}
+
+function updateMenuActive() {
+  pillMenu.querySelectorAll(".pill-menu-item[data-menu-index]").forEach(el => {
+    el.classList.toggle("pill-menu-item--active",
+      parseInt(el.dataset.menuIndex, 10) === currentIndex);
+  });
+}
+
+pill.addEventListener("click", () => {
+  pillMenu.classList.contains("open") ? closeMenu() : positionAndOpen();
+});
+
+menuBackdrop.addEventListener("click", closeMenu);
+
+
+/* ── 13. INITIALISE ─────────────────────────────────────── */
 function init() {
   // Set initial background colour (also sets theme-color via applyBgColour)
   applyBgColour(hexToRgb(pages[0].bg));
-  // Set initial pill label
+  // Set initial pill label and icon
   pillLabel.textContent = pages[0].title;
+  pillIcon.innerHTML = menuIcons[pageIconKeys[0]];
   // Set strip width in px (vw units don't work for translateX math)
   // The CSS sets it in vw units but we also ensure starting translate is 0
   setTranslate(0);
@@ -485,6 +578,236 @@ init();
 if ('screen' in window && 'orientation' in screen && typeof screen.orientation.lock === 'function') {
   screen.orientation.lock('portrait-primary').catch(() => {});
 }
+
+/* ── 14. SETTINGS SHEET ─────────────────────────────────── */
+
+// ── App-level settings (shared across pages) ──────────────────
+const APP_SETTINGS_KEY = 'app_settings_v1';
+
+function loadAppSettings() {
+  try {
+    return Object.assign({
+      periodType:     'fixed',   // 'fixed' | 'lastWeekday'
+      paydayDay:      1,         // 1–28, used when periodType='fixed'
+      budgetStart:    'period',  // 'today' | 'period'
+      budgetStyle:    'fixed',   // 'fixed' | 'adaptive'
+      currency:       'GBP',     // 'GBP' | 'USD' | 'EUR'
+      notifications:  false,
+    }, JSON.parse(localStorage.getItem(APP_SETTINGS_KEY) || '{}'));
+  } catch { return {}; }
+}
+
+function saveAppSettings(s) {
+  localStorage.setItem(APP_SETTINGS_KEY, JSON.stringify(s));
+}
+
+window.appSettings = loadAppSettings();
+
+const settingsSheet     = document.createElement("div");
+settingsSheet.id        = "settings-sheet";
+settingsSheet.innerHTML = `
+  <div id="settings-drag-handle"></div>
+  <div id="settings-header">
+    <span id="settings-title">Settings</span>
+    <button id="settings-close" aria-label="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+      </svg>
+    </button>
+  </div>
+  <div id="settings-body">
+
+    <div class="st-group">
+
+      <!-- Period type -->
+      <div class="st-row">
+        <label class="st-label" for="st-period-type-sel">Period type</label>
+        <select class="st-select" id="st-period-type-sel">
+          <option value="fixed">Fixed date</option>
+          <option value="lastWeekday">Last weekday</option>
+        </select>
+      </div>
+      <!-- Payday day — shown only when period type = fixed -->
+      <div class="st-row st-sub b-hidden" id="st-payday-day-row">
+        <label class="st-label" for="st-payday-input">Payday date</label>
+        <input class="st-input" type="number" id="st-payday-input" min="1" max="28" placeholder="1" />
+      </div>
+      <!-- Budget start -->
+      <div class="st-row">
+        <label class="st-label" for="st-budget-start-sel">Budget starts</label>
+        <select class="st-select" id="st-budget-start-sel">
+          <option value="period">From period start</option>
+          <option value="today">From today</option>
+        </select>
+      </div>
+      <!-- Budget style -->
+      <div class="st-row">
+        <label class="st-label" for="st-budget-style-sel">Daily budget</label>
+        <select class="st-select" id="st-budget-style-sel">
+          <option value="fixed">Fixed daily</option>
+          <option value="adaptive">Adaptive daily</option>
+        </select>
+      </div>
+
+    </div>
+
+    <div class="st-group">
+
+      <!-- Currency -->
+      <div class="st-row">
+        <label class="st-label" for="st-currency-sel">Currency</label>
+        <select class="st-select" id="st-currency-sel">
+          <option value="GBP">GBP (£)</option>
+          <option value="USD">USD ($)</option>
+          <option value="EUR">EUR (€)</option>
+        </select>
+      </div>
+
+    </div>
+
+    <div class="st-group">
+
+      <!-- Notifications -->
+      <div class="st-row">
+        <span class="st-label">Notifications</span>
+        <button class="st-toggle" id="st-notif-toggle" role="switch" aria-checked="false">
+          <span class="st-toggle-thumb"></span>
+        </button>
+      </div>
+
+    </div>
+
+    <button id="st-save-btn">Save Settings</button>
+
+  </div>
+`;
+
+const settingsBackdrop  = document.createElement("div");
+settingsBackdrop.id     = "settings-backdrop";
+
+document.getElementById("app").appendChild(settingsBackdrop);
+document.getElementById("app").appendChild(settingsSheet);
+
+function openSettings() {
+  settingsSheet.classList.add("open");
+  settingsBackdrop.classList.add("open");
+  settingsSheet.style.transform = "";
+}
+
+function closeSettings() {
+  settingsSheet.classList.remove("open");
+  settingsBackdrop.classList.remove("open");
+  settingsSheet.style.transform = "";
+}
+
+document.getElementById("settings-close").addEventListener("click", closeSettings);
+settingsBackdrop.addEventListener("click", closeSettings);
+settingsBtn.addEventListener("click", () => { closeMenu(); openSettings(); });
+
+// Drag-to-dismiss
+let sheetDragStartY = 0;
+let sheetDragCurrent = 0;
+let sheetDragging = false;
+const DISMISS_THRESHOLD = 120; // px down to auto-dismiss
+
+function onSheetPointerDown(e) {
+  // Only allow drag from the handle or header on mobile
+  const isMobile = window.matchMedia("(hover: none)").matches;
+  if (!isMobile) return;
+  sheetDragStartY = e.touches ? e.touches[0].clientY : e.clientY;
+  sheetDragCurrent = 0;
+  sheetDragging = true;
+  settingsSheet.style.transition = "none";
+}
+
+function onSheetPointerMove(e) {
+  if (!sheetDragging) return;
+  const y = e.touches ? e.touches[0].clientY : e.clientY;
+  sheetDragCurrent = Math.max(0, y - sheetDragStartY); // only drag down
+  settingsSheet.style.transform = `translateY(${sheetDragCurrent}px)`;
+  // Fade backdrop as user drags down
+  const progress = Math.min(sheetDragCurrent / DISMISS_THRESHOLD, 1);
+  settingsBackdrop.style.opacity = 1 - progress * 0.8;
+}
+
+function onSheetPointerUp() {
+  if (!sheetDragging) return;
+  sheetDragging = false;
+  settingsSheet.style.transition = "";
+  settingsBackdrop.style.opacity = "";
+  if (sheetDragCurrent > DISMISS_THRESHOLD) {
+    closeSettings();
+  } else {
+    settingsSheet.style.transform = "";
+  }
+}
+
+const sheetHandle = document.getElementById("settings-drag-handle");
+const sheetHeader = document.getElementById("settings-header");
+[sheetHandle, sheetHeader].forEach(el => {
+  el.addEventListener("touchstart",  onSheetPointerDown, { passive: true });
+  el.addEventListener("touchmove",   onSheetPointerMove, { passive: true });
+  el.addEventListener("touchend",    onSheetPointerUp);
+});
+
+// ── Settings rows wiring ───────────────────────────────────────
+
+function renderSettingsValues() {
+  const s = window.appSettings;
+  document.getElementById('st-period-type-sel').value  = s.periodType  || 'fixed';
+  document.getElementById('st-budget-start-sel').value = s.budgetStart || 'period';
+  document.getElementById('st-budget-style-sel').value = s.budgetStyle || 'fixed';
+  document.getElementById('st-currency-sel').value     = s.currency    || 'GBP';
+  document.getElementById('st-payday-input').value     = s.paydayDay   || 1;
+  document.getElementById('st-payday-day-row').classList.toggle('b-hidden', s.periodType !== 'fixed');
+  const toggle = document.getElementById('st-notif-toggle');
+  toggle.classList.toggle('st-toggle--on', !!s.notifications);
+  toggle.setAttribute('aria-checked', String(!!s.notifications));
+}
+
+function notifySettingsChanged() {
+  window.dispatchEvent(new CustomEvent('appsettingschanged'));
+}
+
+function onSelectChange(id, key) {
+  document.getElementById(id).addEventListener('change', e => {
+    window.appSettings[key] = e.target.value;
+    saveAppSettings(window.appSettings);
+    if (key === 'periodType') renderSettingsValues();
+  });
+}
+
+onSelectChange('st-period-type-sel',  'periodType');
+onSelectChange('st-budget-start-sel', 'budgetStart');
+onSelectChange('st-budget-style-sel', 'budgetStyle');
+onSelectChange('st-currency-sel',     'currency');
+
+document.getElementById('st-payday-input').addEventListener('change', e => {
+  const v = Math.max(1, Math.min(28, parseInt(e.target.value, 10) || 1));
+  e.target.value = v;
+  window.appSettings.paydayDay = v;
+  saveAppSettings(window.appSettings);
+});
+
+document.getElementById('st-notif-toggle').addEventListener('click', () => {
+  const s = window.appSettings;
+  s.notifications = !s.notifications;
+  saveAppSettings(s);
+  renderSettingsValues();
+});
+
+document.getElementById('st-save-btn').addEventListener('click', () => {
+  notifySettingsChanged();
+  closeSettings();
+});
+
+// Render values whenever sheet opens
+const _origOpenSettings = openSettings;
+openSettings = function() {
+  renderSettingsValues();
+  _origOpenSettings();
+};
+
 
 /* ── Service Worker registration ── */
 if ('serviceWorker' in navigator) {

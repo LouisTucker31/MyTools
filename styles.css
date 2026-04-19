@@ -157,6 +157,20 @@ body {
   flex-shrink: 0;
 }
 
+#pill-icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  color: #fff;
+  transition: opacity 0.15s ease;
+}
+#pill-icon svg {
+  width: 15px;
+  height: 15px;
+  margin-right: 6px;
+}
+#pill-icon.fading { opacity: 0; }
+
 #pill-label {
   font-size: 14px;
   font-weight: 600;
@@ -167,6 +181,346 @@ body {
 }
 
 #pill-label.fading { opacity: 0; }
+
+#pill {
+  cursor: pointer;
+  transition:
+    width      0.28s cubic-bezier(0.25, 1, 0.5, 1),
+    opacity    0.15s ease;
+}
+
+/* Pill hides itself when menu is open — menu takes its visual place */
+#pill.menu-open {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* --- Pill dropdown menu ------------------------------------ */
+#pill-menu {
+  position: absolute;
+  z-index: 201;
+  width: 240px;
+  background:
+    linear-gradient(rgba(255,255,255,0.04), rgba(255,255,255,0.01)),
+    var(--menu-bg, rgba(10, 46, 20, 0.52));
+  backdrop-filter: blur(40px) saturate(200%) brightness(1.05);
+  -webkit-backdrop-filter: blur(40px) saturate(200%) brightness(1.05);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 24px;
+  box-shadow:
+    0 16px 48px rgba(0, 0, 0, 0.45),
+    0 4px 12px  rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  overflow: hidden;
+  transform-origin: top right;
+  transform: scale(0.5);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    transform 0.42s cubic-bezier(0.34, 1.1, 0.64, 1),
+    opacity   0.26s ease;
+  padding: 6px;
+}
+
+#pill-menu.open {
+  transform: scale(1);
+  opacity: 1;
+  pointer-events: all;
+}
+
+/* Each row */
+.pill-menu-item {
+  display: flex;
+  align-items: center;
+  border: none;
+  background: none;
+  width: 100%;
+  cursor: pointer;
+  padding: 2px 0;
+}
+
+.pill-menu-item:active .pill-menu-item-inner {
+  background: rgba(255, 255, 255, 0.18);
+  transform: scale(0.97);
+}
+
+/* Active page — pill highlight */
+.pill-menu-item--active .pill-menu-item-inner {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+/* Inner wrapper — this is the visible pill */
+.pill-menu-item-inner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 11px 14px;
+  border-radius: 999px;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", sans-serif;
+  font-size: 16px;
+  font-weight: 500;
+  color: #fff;
+  letter-spacing: -0.2px;
+  transition: background 0.1s ease, transform 0.1s ease;
+}
+
+/* Icon */
+.pill-menu-icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.85);
+}
+.pill-menu-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Label */
+.pill-menu-label {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+}
+
+/* Backdrop to catch outside taps */
+#pill-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 198;
+  pointer-events: none;
+}
+#pill-menu-backdrop.open { pointer-events: all; }
+
+/* --- Settings Sheet --------------------------------------- */
+#settings-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  background: rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.36s ease;
+}
+#settings-backdrop.open {
+  opacity: 1;
+  pointer-events: all;
+}
+
+#settings-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: max(60px, calc(env(safe-area-inset-top, 0px) + 60px));
+  z-index: 301;
+  background: #1c1c1e;
+  border-radius: 24px 24px 0 0;
+  padding: 0;
+  transform: translateY(100%);
+  transition: transform 0.42s cubic-bezier(0.34, 1.1, 0.64, 1);
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.5);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+#settings-sheet::-webkit-scrollbar { display: none; }
+#settings-sheet.open {
+  transform: translateY(0);
+}
+
+#settings-drag-handle {
+  width: 36px;
+  height: 5px;
+  background: rgba(255, 255, 255, 0.28);
+  border-radius: 999px;
+  margin: 12px auto 0;
+  cursor: grab;
+}
+
+#settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 20px 12px;
+  position: relative;
+}
+
+#settings-title {
+  font-size: 17px;
+  font-weight: 600;
+  color: #fff;
+  letter-spacing: -0.2px;
+}
+
+#settings-close {
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16);
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.8);
+  transition: background 0.15s ease;
+}
+#settings-close:hover  { background: rgba(255, 255, 255, 0.24); }
+#settings-close:active { background: rgba(255, 255, 255, 0.32); transform: translateY(-50%) scale(0.92); }
+#settings-close svg { width: 14px; height: 14px; }
+
+#settings-body {
+  padding: 8px 20px 16px;
+}
+
+/* Settings rows */
+#settings-body {
+  padding: 4px 16px max(24px, env(safe-area-inset-bottom, 24px));
+}
+
+.st-group {
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 14px;
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+
+.st-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  min-height: 52px;
+  position: relative;
+}
+.st-row + .st-row::before {
+  content: "";
+  position: absolute;
+  top: 0; left: 16px; right: 0;
+  height: 0.5px;
+  background: rgba(255, 255, 255, 0.08);
+}
+.st-row.st-sub { padding-left: 32px; }
+.st-row.st-sub::before { left: 32px; }
+
+.st-label {
+  font-size: 16px;
+  font-weight: 400;
+  color: #fff;
+  letter-spacing: -0.2px;
+}
+
+.st-value {
+  font-size: 16px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.45);
+  letter-spacing: -0.2px;
+}
+
+/* Settings select dropdowns */
+.st-select {
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(255, 255, 255, 0.08)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='rgba(255,255,255,0.35)'/%3E%3C/svg%3E")
+    no-repeat right 10px center;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.75);
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  padding: 6px 30px 6px 10px;
+  height: 36px;
+  cursor: pointer;
+  outline: none;
+  transition: background 0.15s ease;
+}
+.st-select:focus { border-color: rgba(255, 255, 255, 0.28); }
+.st-select option { background: #1c1c1e; color: #fff; }
+
+/* Settings number input (payday date) */
+.st-input {
+  -webkit-appearance: none;
+  appearance: none;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.75);
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  padding: 6px 10px;
+  height: 36px;
+  width: 72px;
+  text-align: center;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+.st-input:focus { border-color: rgba(255, 255, 255, 0.28); }
+input[type=number].st-input::-webkit-inner-spin-button,
+input[type=number].st-input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+input[type=number].st-input { -moz-appearance: textfield; }
+
+/* Save button */
+#st-save-btn {
+  display: block;
+  width: 100%;
+  padding: 15px;
+  margin-bottom: 8px;
+  border: none;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.1s ease;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset 0 -1px 0 rgba(0, 0, 0, 0.15);
+}
+#st-save-btn:active {
+  background: rgba(255, 255, 255, 0.08);
+  transform: scale(0.98);
+}
+
+/* Toggle */
+.st-toggle {
+  width: 51px;
+  height: 31px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.15);
+  border: none;
+  cursor: pointer;
+  position: relative;
+  transition: background 0.22s ease;
+  flex-shrink: 0;
+}
+.st-toggle--on { background: #34C759; }
+.st-toggle-thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 27px;
+  height: 27px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  transition: transform 0.22s cubic-bezier(0.34, 1.2, 0.64, 1);
+}
+.st-toggle--on .st-toggle-thumb { transform: translateX(20px); }
 
 /* --- Carousel Viewport ------------------------------------ */
 #carousel-viewport {

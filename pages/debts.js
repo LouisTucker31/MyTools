@@ -39,9 +39,11 @@
     return Math.random().toString(36).slice(2) + Date.now().toString(36);
   }
 
+  const CURRENCY_SYMBOLS = { GBP: '£', USD: '$', EUR: '€' };
+  function currSym() { return CURRENCY_SYMBOLS[(window.appSettings || {}).currency] || '£'; }
   function fmt(n) {
     if (n === 0) return '—';
-    return '£' + Math.abs(n).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return currSym() + Math.abs(n).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
   function flashInput(el) {
@@ -158,7 +160,7 @@
       <div class="b-setup-panel b-hidden" id="dt-add-panel">
         <div class="b-two-col">
           <div class="b-field">
-            <input type="text" class="b-input" id="dt-name" placeholder="Name (e.g. Visa Card)">
+            <input type="text" class="b-input" id="dt-name" placeholder="Name (e.g. Visa Card)" autocapitalize="words">
           </div>
           <div class="b-field">
             <select class="b-input" id="dt-type">
@@ -285,7 +287,7 @@
 <div class="sv-row sv-row--editing" data-id="${d.id}">
   <div class="b-txn-edit-fields" style="width:100%">
     <div class="b-two-col">
-      <input type="text" class="b-input" placeholder="Name" value="${d.name}" data-field="name">
+      <input type="text" class="b-input" placeholder="Name" value="${d.name}" data-field="name" autocapitalize="words">
       <select class="b-input" data-field="type">
         <option value="credit"   ${d.type==='credit'   ?'selected':''}>Credit Card</option>
         <option value="loan"     ${d.type==='loan'     ?'selected':''}>Loan</option>
@@ -482,6 +484,7 @@
 
   /* ── 9. BOOT ──────────────────────────────────────────────── */
 
+  window.addEventListener('appsettingschanged', render);
   applyMissedPayments();
   render();
 

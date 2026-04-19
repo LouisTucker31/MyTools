@@ -39,9 +39,11 @@
     return Math.random().toString(36).slice(2) + Date.now().toString(36);
   }
 
+  const CURRENCY_SYMBOLS = { GBP: '£', USD: '$', EUR: '€' };
+  function currSym() { return CURRENCY_SYMBOLS[(window.appSettings || {}).currency] || '£'; }
   function fmt(n) {
     if (n === 0) return '—';
-    return '£' + Math.abs(n).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return currSym() + Math.abs(n).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
 
   // Sort bills by next due date in the current pay cycle.
@@ -154,7 +156,7 @@
     <div class="b-setup-panel b-hidden" id="bl-add-panel">
       <div class="b-entry-fields">
         <div class="b-field">
-          <input type="text" class="b-input" id="bl-name" placeholder="Bill name">
+          <input type="text" class="b-input" id="bl-name" placeholder="Bill name" autocapitalize="words">
         </div>
         <div class="b-field">
           <input type="number" class="b-input" id="bl-amt" placeholder="£0.00" min="0" step="0.01">
@@ -221,7 +223,7 @@
 <div class="bl-row bl-row--editing" data-id="${b.id}">
   <div class="b-txn-edit-fields" style="width:100%">
     <div class="b-txn-edit-top">
-      <input type="text"   class="b-input bl-edit-name" value="${b.name}" placeholder="Bill name">
+      <input type="text"   class="b-input bl-edit-name" value="${b.name}" placeholder="Bill name" autocapitalize="words">
       <input type="number" class="b-input bl-edit-amt"  value="${b.amount}" min="0" step="0.01">
     </div>
     <input type="number" class="b-input bl-edit-day" value="${b.day}" min="1" max="31" placeholder="Day of month">
@@ -364,6 +366,7 @@
 
   /* ── 8. BOOT ──────────────────────────────────────────────── */
 
+  window.addEventListener('appsettingschanged', render);
   render();
 
 })();
